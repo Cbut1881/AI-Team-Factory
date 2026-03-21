@@ -391,6 +391,8 @@ class ChatPanel(QMainWindow):
     message_sent = pyqtSignal(str)
     voice_toggled = pyqtSignal(bool)
     language_changed = pyqtSignal(str)
+    live_mode_toggled = pyqtSignal(bool)
+    camera_toggled = pyqtSignal(bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -405,6 +407,7 @@ class ChatPanel(QMainWindow):
         self.setStyleSheet(GLOBAL_QSS)
 
         self._voice_on = False
+        self._live_on = False
         self._current_lang = "th-TH"
 
         self._build_ui()
@@ -424,6 +427,13 @@ class ChatPanel(QMainWindow):
         self._title_bar.close_requested.connect(self.hide)
         self._title_bar.minimize_requested.connect(self.showMinimized)
         root.addWidget(self._title_bar)
+
+        # Camera preview (hidden by default)
+        from ui.live_camera_widget import LiveCameraWidget
+
+        self._camera_widget = LiveCameraWidget()
+        self._camera_widget.setVisible(False)
+        root.addWidget(self._camera_widget)
 
         # Message area
         self._scroll_area = QScrollArea()
@@ -474,6 +484,22 @@ class ChatPanel(QMainWindow):
         # Buttons row
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
+
+        # Live button
+        self._live_btn = QPushButton("\u26a1 Live")
+        self._live_btn.setCheckable(True)
+        self._live_btn.setFixedHeight(32)
+        self._live_btn.setStyleSheet(self._toggle_btn_style(False))
+        self._live_btn.clicked.connect(self._on_live_toggled)
+        btn_row.addWidget(self._live_btn)
+
+        # Camera toggle button
+        self._camera_btn = QPushButton("\U0001f4f7")
+        self._camera_btn.setCheckable(True)
+        self._camera_btn.setFixedSize(40, 32)
+        self._camera_btn.setStyleSheet(self._toggle_btn_style(False))
+        self._camera_btn.clicked.connect(self._on_camera_toggled)
+        btn_row.addWidget(self._camera_btn)
 
         # Voice button
         self._voice_btn = QPushButton("\U0001f399 Voice")
@@ -569,6 +595,37 @@ class ChatPanel(QMainWindow):
         self._voice_on = self._voice_btn.isChecked()
         self._voice_btn.setStyleSheet(self._toggle_btn_style(self._voice_on))
         self.voice_toggled.emit(self._voice_on)
+        # If voice is turned off while live mode is on, deactivate live mode
+        if not self._voice_on and self._live_on:
+            self._live_btn.setChecked(False)
+            self._on_live_toggled()
+
+    def _on_live_toggled(self) -> None:
+        self._live_on = self._live_btn.isChecked()
+        self._live_btn.setStyleSheet(self._live_btn_style(self._live_on))
+        self.live_mode_toggled.emit(self._live_on)
+        if self._live_on:
+            # Activate voice and show camera when entering live mode
+            if not self._voice_on:
+                self._voice_btn.setChecked(True)
+                self._voice_on = True
+                self._voice_btn.setStyleSheet(self._toggle_btn_style(True))
+                self.voice_toggled.emit(True)
+            self.show_camera()
+            self._camera_btn.setChecked(True)
+        else:
+            # Hide camera when leaving live mode
+            self.hide_camera()
+            self._camera_btn.setChecked(False)
+
+    def _on_camera_toggled(self) -> None:
+        active = self._camera_btn.isChecked()
+        self._camera_btn.setStyleSheet(self._toggle_btn_style(active))
+        self.camera_toggled.emit(active)
+        if active:
+            self.show_camera()
+        else:
+            self.hide_camera()
 
     def _on_language_toggled(self) -> None:
         if self._current_lang == "th-TH":
@@ -638,6 +695,24 @@ class ChatPanel(QMainWindow):
         """Update the title bar status dot."""
         self._title_bar.set_online(online)
 
+    def show_camera(self) -> None:
+        """Show the camera preview widget."""
+        self._camera_widget.setVisible(True)
+
+    def hide_camera(self) -> None:
+        """Hide the camera preview widget."""
+        self._camera_widget.setVisible(False)
+
+    def get_camera_widget(self):
+        """Return the LiveCameraWidget instance."""
+        return self._camera_widget
+
+    def set_live_mode(self, active: bool) -> None:
+        """Programmatically set live mode on or off."""
+        if active != self._live_on:
+            self._live_btn.setChecked(active)
+            self._on_live_toggled()
+
     # -- Internal helpers ------------------------------------------------
 
     def _scroll_to_bottom(self) -> None:
@@ -648,6 +723,27 @@ class ChatPanel(QMainWindow):
             from PyQt6.QtCore import QTimer
 
             QTimer.singleShot(50, lambda: vsb.setValue(vsb.maximum()))
+
+    @staticmethod
+    def _live_btn_style(active: bool) -> str:
+        """Style for the Live button with red/orange accent when active."""
+        if active:
+            return (
+                f"QPushButton {{ color: #ffffff; "
+                f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+                f"stop:0 #e63946, stop:1 #f77f00); "
+                f"border: none; border-radius: 6px; padding: 0 12px; "
+                f"font-size: 12px; font-weight: bold; }}"
+                f"QPushButton:hover {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+                f"stop:0 #ff4d5a, stop:1 #ff9a1f); }}"
+            )
+        return (
+            f"QPushButton {{ color: {COL_TEXT_DIM}; background: {COL_BG}; "
+            f"border: 1px solid {COL_BORDER}; border-radius: 6px; "
+            f"padding: 0 12px; font-size: 12px; }}"
+            f"QPushButton:hover {{ border-color: #f77f00; "
+            f"color: {COL_TEXT}; }}"
+        )
 
     @staticmethod
     def _toggle_btn_style(active: bool) -> str:

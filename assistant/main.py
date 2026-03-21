@@ -41,8 +41,9 @@ from config import AssistantConfig
 from ui.avatar_widget import AvatarWidget, AvatarState
 from ui.chat_panel import ChatPanel
 from brain.ai_brain import AIBrain
-from voice.listener import VoiceListener
+from voice.listener import VoiceListener, ListenMode
 from voice.speaker import VoiceSpeaker
+from vision.camera import WebcamCapture
 
 
 class NovaAssistant(QObject):
@@ -55,6 +56,8 @@ class NovaAssistant(QObject):
         self.app = app
         self.config = AssistantConfig.load()
         self._processing = False
+        self._live_mode = False
+        self._webcam: WebcamCapture | None = None
 
         # ── Async event loop in background thread ──
         self.loop = asyncio.new_event_loop()
@@ -72,8 +75,9 @@ class NovaAssistant(QObject):
         # ── System tray ──
         self._init_tray()
 
-        # ── Startup greeting ──
+        # ── Startup greeting, then auto-start Live Mode ──
         QTimer.singleShot(1500, self._startup_greeting)
+        QTimer.singleShot(2500, self._auto_start_live)
 
     # ════════════════════════════════════════════════════════════
     #  Initialization
@@ -99,6 +103,10 @@ class NovaAssistant(QObject):
         # Chat panel
         self.chat.message_sent.connect(self._on_user_message)
         self.chat.voice_toggled.connect(self._on_voice_toggled)
+
+        # Live mode & camera
+        self.chat.live_mode_toggled.connect(self._on_live_mode_toggled)
+        self.chat.camera_toggled.connect(self._on_camera_toggled)
 
         # Voice listener
         self.listener.text_recognized.connect(self._on_voice_input)
@@ -194,16 +202,58 @@ class NovaAssistant(QObject):
 
     @pyqtSlot()
     def _on_avatar_clicked(self):
-        """Toggle voice listening on avatar click."""
-        if self.listener.isRunning():
+        """Toggle Live Mode on avatar click — talk directly, no buttons needed."""
+        if self._live_mode:
+            # Turn off live mode
+            self._live_mode = False
             self.listener.stop_listening()
+            self.listener.mode = ListenMode.PUSH_TO_TALK
+            camera_widget = self.chat.get_camera_widget()
+            camera_widget.stop()
+            if self._webcam:
+                self._webcam.stop()
+                self._webcam = None
+            self.avatar.set_state(AvatarState.IDLE)
+            self.chat.set_status("Ready")
+            self.chat.set_live_mode(False)
         else:
+            # Turn on live mode — continuous listening + camera
+            self._live_mode = True
+            self.listener.stop_listening()
+            self.listener.mode = ListenMode.CONTINUOUS
             self.listener.start_listening()
+            # Start camera
+            self._webcam = WebcamCapture()
+            camera_widget = self.chat.get_camera_widget()
+            camera_widget.start()
+            self.chat.show_camera()
+            self.chat.set_live_mode(True)
+            self.chat.set_status("Live Mode — listening...")
+            # Auto-show chat if hidden
+            if not self.chat.isVisible():
+                self.chat.toggle_visibility()
 
     @pyqtSlot()
     def _on_avatar_double_clicked(self):
-        """Open chat panel on double click."""
-        self.chat.toggle_visibility()
+        """Double-click = open chat for typing (stop voice if active)."""
+        # Stop live mode if active — switch to typing
+        if self._live_mode:
+            self._live_mode = False
+            self.listener.stop_listening()
+            self.listener.mode = ListenMode.PUSH_TO_TALK
+            camera_widget = self.chat.get_camera_widget()
+            camera_widget.stop()
+            if self._webcam:
+                self._webcam.stop()
+                self._webcam = None
+            self.avatar.set_state(AvatarState.IDLE)
+            self.chat.set_live_mode(False)
+
+        self.chat.set_status("Type a message...")
+        # Open chat and focus the input box
+        if not self.chat.isVisible():
+            self.chat.toggle_visibility()
+        self.chat._input_box.setFocus()
 
     @pyqtSlot(str)
     def _on_user_message(self, text: str):
@@ -228,6 +278,49 @@ class NovaAssistant(QObject):
         else:
             self.listener.stop_listening()
 
+    @pyqtSlot(bool)
+    def _on_live_mode_toggled(self, enabled: bool):
+        """Toggle Live Mode — continuous voice + camera."""
+        self._live_mode = enabled
+        camera_widget = self.chat.get_camera_widget()
+
+        if enabled:
+            # Start camera
+            self._webcam = WebcamCapture()
+            camera_widget.start()
+
+            # Switch to continuous listening
+            self.listener.stop_listening()
+            self.listener.mode = ListenMode.CONTINUOUS
+            self.listener.start_listening()
+
+            self.chat.set_status("Live Mode — listening...")
+        else:
+            # Stop camera
+            camera_widget.stop()
+            if self._webcam:
+                self._webcam.stop()
+                self._webcam = None
+
+            # Switch back to push-to-talk
+            self.listener.stop_listening()
+            self.listener.mode = ListenMode.PUSH_TO_TALK
+
+            self.chat.set_status("Ready")
+
+    @pyqtSlot(bool)
+    def _on_camera_toggled(self, enabled: bool):
+        """Toggle camera independently."""
+        camera_widget = self.chat.get_camera_widget()
+        if enabled:
+            self._webcam = WebcamCapture()
+            camera_widget.start()
+        else:
+            camera_widget.stop()
+            if self._webcam:
+                self._webcam.stop()
+                self._webcam = None
+
     # ════════════════════════════════════════════════════════════
     #  Processing
     # ════════════════════════════════════════════════════════════
@@ -246,8 +339,15 @@ class NovaAssistant(QObject):
     async def _async_process(self, text: str):
         """Async processing in background thread."""
         try:
-            # Process with AI brain
-            response = await self.brain.process(text)
+            # In live mode with camera, include a frame for visual context
+            if self._live_mode and self._webcam and self._webcam.is_running:
+                frame = self._webcam.capture_frame()
+                if frame:
+                    response = await self.brain.process(text, images=[frame])
+                else:
+                    response = await self.brain.process(text)
+            else:
+                response = await self.brain.process(text)
             # Emit signal to deliver response on main thread
             self.response_ready.emit(response)
         except Exception as e:
@@ -263,13 +363,27 @@ class NovaAssistant(QObject):
         # Speak the response
         self.speaker.speak(response)
 
+    def _auto_start_live(self):
+        """Auto-start Live Mode on launch — voice + camera ready immediately."""
+        self._live_mode = True
+        self.listener.mode = ListenMode.CONTINUOUS
+        self.listener.start_listening()
+        # Start camera
+        self._webcam = WebcamCapture()
+        camera_widget = self.chat.get_camera_widget()
+        camera_widget.start()
+        self.chat.show_camera()
+        self.chat.set_live_mode(True)
+        self.chat.set_status("Live Mode — listening...")
+        self.avatar.set_state(AvatarState.LISTENING)
+
     # ════════════════════════════════════════════════════════════
     #  Helpers
     # ════════════════════════════════════════════════════════════
 
     def _startup_greeting(self):
         """Show greeting on startup."""
-        greeting = "สวัสดีครับ! ผม Nova ผู้ช่วย AI ของคุณ พร้อมทำงานแล้วครับ"
+        greeting = "สวัสดีค่ะ! หนู Nova ผู้ช่วย AI ของคุณ พร้อมทำงานแล้วค่ะ"
         self.chat.add_message("Nova", greeting, "assistant")
         self.speaker.speak(greeting)
 
@@ -288,6 +402,11 @@ class NovaAssistant(QObject):
         """Clean shutdown."""
         self.listener.stop_listening()
         self.speaker.shutdown()
+        # Stop camera if active
+        camera_widget = self.chat.get_camera_widget()
+        camera_widget.stop()
+        if self._webcam:
+            self._webcam.stop()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.tray.hide()
         self.app.quit()
@@ -303,10 +422,10 @@ def main():
     ║           NOVA — AI Desktop Assistant             ║
     ║         AI Team Factory Companion                 ║
     ╠══════════════════════════════════════════════════╣
-    ║  Click avatar    → Toggle voice listening         ║
-    ║  Double-click    → Open chat panel                ║
+    ║  Auto-start      → Voice+Camera on launch          ║
+    ║  Double-click    → Typing mode (open chat)         ║
+    ║  Click avatar    → Toggle voice on/off            ║
     ║  Right-click     → Menu                           ║
-    ║  Ctrl+Space      → Push-to-talk                   ║
     ╚══════════════════════════════════════════════════╝
     """)
 
