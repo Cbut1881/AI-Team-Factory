@@ -1,0 +1,31 @@
+{
+  "description": "ทีมสร้างผลิตภัณฑ์ครบวงจร — วิจัย, ออกแบบ, พัฒนา, ทดสอบ, การตลาด",
+  "members": [
+    {
+      "name": "product-researcher",
+      "expertise": "วิจัยตลาด, วิเคราะห์คู่แข่ง, หา product-market fit, user research",
+      "preset": "researcher"
+    },
+    {
+      "name": "product-designer",
+      "expertise": "ออกแบบ UI/UX, wireframe, user flow, design system, prototype",
+      "preset": "designer"
+    },
+    {
+      "name": "product-developer",
+      "expertise": "เขียน full-stack app, Python, JavaScript, API, database, deploy",
+      "preset": "coder"
+    },
+    {
+      "name": "product-qa",
+      "expertise": "ทดสอบ product, หา bug, usability testing, regression test",
+      "preset": "tester"
+    },
+    {
+      "name": "product-marketer",
+      "expertise": "เขียน landing page, social media content, SEO, pitch deck, ad copy",
+      "preset": "writer",
+      "temperature": 0.7
+    }
+  ]
+}

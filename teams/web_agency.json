@@ -1,0 +1,25 @@
+{
+  "description": "ทีมสร้างเว็บ/แอป — วางแผน, ออกแบบ, เขียน code, ทดสอบ",
+  "members": [
+    {
+      "name": "web-planner",
+      "expertise": "วางแผน web project, เขียน spec, กำหนด feature, database design",
+      "preset": "planner"
+    },
+    {
+      "name": "web-frontend",
+      "expertise": "เขียน React, Next.js, TypeScript, Tailwind CSS, responsive design",
+      "preset": "coder"
+    },
+    {
+      "name": "web-backend",
+      "expertise": "เขียน FastAPI, Node.js, REST API, database, authentication, deployment",
+      "preset": "coder"
+    },
+    {
+      "name": "web-tester",
+      "expertise": "ทดสอบ web app, API testing, security testing, accessibility, performance",
+      "preset": "tester"
+    }
+  ]
+}

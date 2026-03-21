@@ -1,0 +1,26 @@
+{
+  "description": "ทีมสร้างเกม — ออกแบบ, เขียน code, ทดสอบ, เขียน content",
+  "members": [
+    {
+      "name": "game-designer",
+      "expertise": "ออกแบบ gameplay, level design, game mechanics, GDD, balance",
+      "preset": "planner",
+      "temperature": 0.7
+    },
+    {
+      "name": "game-coder",
+      "expertise": "เขียน game logic, Pygame, Godot GDScript, physics, collision, animation",
+      "preset": "coder"
+    },
+    {
+      "name": "game-tester",
+      "expertise": "ทดสอบเกม, หา bug, performance test, edge cases, game balance testing",
+      "preset": "tester"
+    },
+    {
+      "name": "game-writer",
+      "expertise": "เขียน story, dialogue, lore, game description, store listing",
+      "preset": "writer"
+    }
+  ]
+}

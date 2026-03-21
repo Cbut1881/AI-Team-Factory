@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Team Factory — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   CSS — Futuristic Dark Theme
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #0a0a0f;
+  --panel: #1a1a2e;
+  --panel-light: #222240;
+  --border: #2a2a4a;
+  --cyan: #00f0ff;
+  --purple: #7b2ff7;
+  --green: #00ff88;
+  --red: #ff3b5c;
+  --yellow: #ffd600;
+  --orange: #ff8a00;
+  --text: #e0e0f0;
+  --text-dim: #8888aa;
+  --text-bright: #ffffff;
+  --glow-cyan: 0 0 20px rgba(0,240,255,0.3);
+  --glow-purple: 0 0 20px rgba(123,47,247,0.3);
+  --glow-green: 0 0 20px rgba(0,255,136,0.3);
+  --radius: 12px;
+  --font-ui: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* ── Header ────────────────────────────────────────────────── */
+.header {
+  background: linear-gradient(135deg, var(--panel) 0%, #12122a 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-title {
+  font-size: 20px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+}
+
+.header-subtitle {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 12px;
+}
+
+.conn-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.conn-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  transition: background 0.3s;
+}
+
+.conn-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+
+.tab {
+  padding: 14px 24px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s;
+  user-select: none;
+}
+
+.tab:hover {
+  color: var(--text);
+  background: rgba(0,240,255,0.05);
+}
+
+.tab.active {
+  color: var(--cyan);
+  border-bottom-color: var(--cyan);
+  background: rgba(0,240,255,0.08);
+}
+
+/* ── Tab Content ───────────────────────────────────────────── */
+.tab-content {
+  display: none;
+  padding: 20px 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  animation: fadeIn 0.3s;
+}
+
+.tab-content.active { display: block; }
+
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.stat-card:hover {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.stat-card .label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.stat-card .value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  background: linear-gradient(135deg, var(--cyan), var(--green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-card .icon {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  font-size: 28px;
+  opacity: 0.15;
+}
+
+.stat-card.purple .value {
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  -webkit-background-clip: text;
+}
+
+.stat-card.green .value {
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  -webkit-background-clip: text;
+}
+
+.stat-card.yellow .value {
+  background: linear-gradient(135deg, var(--yellow), var(--orange));
+  -webkit-background-clip: text;
+}
+
+/* ── Section ───────────────────────────────────────────────── */
+.section {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.section-title::before {
+  content: '';
+  width: 3px;
+  height: 16px;
+  background: var(--cyan);
+  border-radius: 2px;
+}
+
+/* ── Forms ──────────────────────────────────────────────────── */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.form-group { display:flex; flex-direction:column; gap:6px; }
+
+.form-group label {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+input[type="text"], input[type="number"], textarea, select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0,240,255,0.15);
+}
+
+textarea {
+  font-family: var(--font-mono);
+  resize: vertical;
+  min-height: 80px;
+}
+
+select option { background: var(--panel); color: var(--text); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--cyan);
+  cursor: pointer;
+  box-shadow: var(--glow-cyan);
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--cyan), #0088cc);
+  color: var(--bg);
+  border-color: var(--cyan);
+}
+
+.btn-primary:hover { box-shadow: var(--glow-cyan); transform:translateY(-1px); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--purple);
+  border-color: var(--purple);
+}
+
+.btn-secondary:hover { background: rgba(123,47,247,0.1); box-shadow: var(--glow-purple); }
+
+.btn-danger {
+  background: transparent;
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.btn-danger:hover { background: rgba(255,59,92,0.1); }
+
+.btn-sm { padding: 6px 12px; font-size: 11px; }
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ── Agent Cards ───────────────────────────────────────────── */
+.agent-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.agent-card {
+  background: var(--panel-light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.agent-card:hover {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+  transform: translateY(-2px);
+}
+
+.agent-card .agent-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  margin-bottom: 6px;
+}
+
+.agent-card .agent-expertise {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.agent-card .agent-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.agent-card .agent-meta span {
+  background: var(--bg);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.agent-card .agent-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.status-dot.idle { background: var(--text-dim); }
+.status-dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse-dot 1s infinite; }
+.status-dot.training { background: var(--purple); box-shadow: 0 0 6px var(--purple); animation: pulse-dot 1s infinite; }
+.status-dot.error { background: var(--red); }
+
+/* ── Terminal ──────────────────────────────────────────────── */
+.terminal {
+  background: #0c0c14;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  max-height: 500px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.terminal .line-agent { color: var(--cyan); }
+.terminal .line-system { color: var(--text-dim); font-style: italic; }
+.terminal .line-error { color: var(--red); }
+.terminal .line-success { color: var(--green); }
+.terminal .line-output { color: var(--text); }
+
+.terminal .cursor-blink::after {
+  content: '\2588';
+  animation: blink 1s step-end infinite;
+  color: var(--cyan);
+}
+
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0;} }
+
+/* ── Progress Bar ──────────────────────────────────────────── */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 12px rgba(0,240,255,0.4);
+}
+
+.progress-fill.purple {
+  background: linear-gradient(90deg, var(--purple), var(--cyan));
+  box-shadow: 0 0 12px rgba(123,47,247,0.4);
+}
+
+/* ── Activity Feed ─────────────────────────────────────────── */
+.activity-feed {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  transition: background 0.2s;
+  animation: slideIn 0.3s;
+}
+
+.activity-item:hover { background: rgba(255,255,255,0.03); }
+
+@keyframes slideIn { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
+
+.activity-time {
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  font-size: 11px;
+  min-width: 60px;
+}
+
+.activity-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 80px;
+  text-align: center;
+}
+
+.activity-badge.info { background: rgba(0,240,255,0.15); color: var(--cyan); }
+.activity-badge.success { background: rgba(0,255,136,0.15); color: var(--green); }
+.activity-badge.error { background: rgba(255,59,92,0.15); color: var(--red); }
+.activity-badge.warning { background: rgba(255,214,0,0.15); color: var(--yellow); }
+.activity-badge.running { background: rgba(123,47,247,0.15); color: var(--purple); }
+
+.activity-text { color: var(--text); flex: 1; }
+
+/* ── Mode Selector ─────────────────────────────────────────── */
+.mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.mode-btn {
+  padding: 10px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-light);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.mode-btn:hover { border-color: var(--cyan); color: var(--text); }
+
+.mode-btn.active {
+  border-color: var(--cyan);
+  background: rgba(0,240,255,0.1);
+  color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+/* ── Workspace layout ──────────────────────────────────────── */
+.workspace-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .workspace-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Pipeline stages ───────────────────────────────────────── */
+.pipeline-stages { display:flex; flex-direction:column; gap:8px; }
+
+.pipeline-stage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--panel-light);
+  border-radius: 8px;
+  border-left: 3px solid var(--border);
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.pipeline-stage.running { border-left-color: var(--cyan); background: rgba(0,240,255,0.05); }
+.pipeline-stage.done { border-left-color: var(--green); }
+.pipeline-stage.error { border-left-color: var(--red); }
+
+/* ── Debate ────────────────────────────────────────────────── */
+.debate-round {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: var(--panel-light);
+  border-radius: var(--radius);
+  border-left: 3px solid var(--purple);
+}
+
+.debate-round-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-bottom: 10px;
+}
+
+.debate-entry {
+  margin-bottom: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.debate-agent {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cyan);
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+.debate-text {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ── Training ──────────────────────────────────────────────── */
+.train-steps {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.train-step {
+  flex: 1;
+  text-align: center;
+  padding: 10px 6px;
+  background: var(--panel-light);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  border-top: 3px solid var(--border);
+  transition: all 0.3s;
+}
+
+.train-step.active {
+  border-top-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,240,255,0.08);
+}
+
+.train-step.done {
+  border-top-color: var(--green);
+  color: var(--green);
+}
+
+.exam-results-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 12px;
+}
+
+.exam-results-table th {
+  text-align: left;
+  padding: 8px 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.exam-results-table td {
+  padding: 8px 12px;
+  background: var(--panel-light);
+}
+
+.exam-results-table tr td:first-child { border-radius: 6px 0 0 6px; }
+.exam-results-table tr td:last-child { border-radius: 0 6px 6px 0; }
+
+.score-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.score-badge.pass { background: rgba(0,255,136,0.15); color: var(--green); }
+.score-badge.fail { background: rgba(255,59,92,0.15); color: var(--red); }
+
+/* ── Comparison chart ──────────────────────────────────────── */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  height: 150px;
+  padding-top: 10px;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-fill {
+  width: 100%;
+  max-width: 60px;
+  border-radius: 6px 6px 0 0;
+  transition: height 1s ease;
+}
+
+.bar-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.bar-value {
+  font-size: 13px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+/* ── Two-column layout ─────────────────────────────────────── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* ── Loading spinner ───────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Tags ──────────────────────────────────────────────────── */
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: rgba(0,240,255,0.1);
+  color: var(--cyan);
+  margin-right: 4px;
+}
+
+.tag.purple { background: rgba(123,47,247,0.15); color: var(--purple); }
+.tag.green { background: rgba(0,255,136,0.15); color: var(--green); }
+
+/* ── Checkbox list (agents/teams) ──────────────────────────── */
+.check-list {
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.check-item:hover { background: rgba(255,255,255,0.03); }
+
+.check-item input[type="checkbox"] {
+  accent-color: var(--cyan);
+  width: 14px; height: 14px;
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.gap-8 { gap: 8px; }
+.flex { display: flex; }
+.flex-wrap { flex-wrap: wrap; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.text-dim { color: var(--text-dim); }
+.text-sm { font-size: 12px; }
+.text-xs { font-size: 11px; }
+.font-mono { font-family: var(--font-mono); }
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.w-full { width: 100%; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="header">
+  <div class="flex items-center">
+    <span class="header-title">AI TEAM FACTORY</span>
+    <span class="header-subtitle">Dashboard v1.0</span>
+  </div>
+  <div class="conn-status">
+    <div class="conn-dot" id="connDot"></div>
+    <span id="connText">กำลังเชื่อมต่อ...</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TABS
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tabs">
+  <div class="tab active" data-tab="dashboard">หน้าแรก</div>
+  <div class="tab" data-tab="factory">โรงงาน</div>
+  <div class="tab" data-tab="workspace">สนามงาน</div>
+  <div class="tab" data-tab="training">ห้องฝึกอบรม</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 1: DASHBOARD
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tab-content active" id="tab-dashboard">
+  <!-- Stats -->
+  <div class="cards-row" id="statsRow">
+    <div class="stat-card">
+      <div class="label">Agents</div>
+      <div class="value" id="statAgents">0</div>
+      <div class="icon">&#x1F916;</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="label">Teams</div>
+      <div class="value" id="statTeams">0</div>
+      <div class="icon">&#x1F465;</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Models</div>
+      <div class="value" id="statModels">0</div>
+      <div class="icon">&#x1F9E0;</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="label">Datasets</div>
+      <div class="value" id="statDatasets">0</div>
+      <div class="icon">&#x1F4CA;</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Activity Feed -->
+    <div class="section">
+      <div class="section-title">กิจกรรมล่าสุด</div>
+      <div class="activity-feed" id="activityFeed">
+        <div class="text-dim text-sm text-center" style="padding:20px;">ยังไม่มีกิจกรรม</div>
+      </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="section">
+      <div class="section-title">สถานะระบบ</div>
+      <div id="systemStatus">
+        <div class="flex items-center gap-8 mb-12">
+          <span class="status-dot idle" id="ollamaStatusDot"></span>
+          <span class="text-sm">Ollama: <span id="ollamaStatusText" class="font-mono">ตรวจสอบ...</span></span>
+        </div>
+        <div id="gpuInfo" class="hidden">
+          <div class="text-sm text-dim mb-12">GPU</div>
+          <div class="text-sm font-mono mb-12" id="gpuName">-</div>
+          <div class="flex justify-between text-xs text-dim mb-12">
+            <span>VRAM</span>
+            <span id="gpuMemText">- / - MB</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill purple" id="gpuMemBar" style="width:0%"></div>
+          </div>
+          <div class="text-xs text-dim mt-8">อุณหภูมิ: <span id="gpuTemp" class="font-mono">-</span> C</div>
+        </div>
+        <div id="gpuNone" class="text-sm text-dim" style="padding:10px 0;">ไม่พบ GPU (nvidia-smi)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 2: FACTORY
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-factory">
+  <div class="two-col">
+    <!-- Create Agent -->
+    <div class="section">
+      <div class="section-title">สร้าง Agent</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>ชื่อ Agent</label>
+          <input type="text" id="fAgentName" placeholder="เช่น game-coder">
+        </div>
+        <div class="form-group">
+          <label>ความสามารถ</label>
+          <input type="text" id="fAgentExpertise" placeholder="เช่น เขียน Unity C# script">
+        </div>
+        <div class="form-group">
+          <label>Preset</label>
+          <select id="fAgentPreset">
+            <option value="">-- อัตโนมัติ --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Base Model</label>
+          <select id="fAgentBaseModel">
+            <option value="">-- ตาม preset --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Temperature: <span id="fTempVal">0.5</span></label>
+          <input type="range" id="fAgentTemp" min="0" max="1" step="0.1" value="0.5">
+        </div>
+      </div>
+      <div class="mt-16">
+        <button class="btn btn-primary" onclick="createAgent()">สร้าง Agent</button>
+      </div>
+      <div id="createAgentProgress" class="hidden mt-12">
+        <div class="progress-bar"><div class="progress-fill" id="createAgentBar" style="width:0%"></div></div>
+        <div class="text-xs text-dim mt-8" id="createAgentMsg"></div>
+      </div>
+    </div>
+
+    <!-- Create Team -->
+    <div class="section">
+      <div class="section-title">สร้างทีม</div>
+      <div class="form-group mb-16">
+        <label>ชื่อทีม</label>
+        <input type="text" id="fTeamName" placeholder="เช่น game-studio">
+      </div>
+      <div class="form-group mb-16">
+        <label>สมาชิก (JSON)</label>
+        <textarea id="fTeamMembers" rows="6" placeholder='[
+  {"name": "designer", "expertise": "ออกแบบ UI"},
+  {"name": "coder", "expertise": "เขียน code"}
+]'></textarea>
+      </div>
+      <button class="btn btn-secondary" onclick="createTeam()">สร้างทีม</button>
+      <div id="createTeamProgress" class="hidden mt-12">
+        <div class="progress-bar"><div class="progress-fill purple" id="createTeamBar" style="width:0%"></div></div>
+        <div class="text-xs text-dim mt-8" id="createTeamMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agent List -->
+  <div class="section">
+    <div class="section-title flex justify-between">
+      <span>รายชื่อ Agents</span>
+      <button class="btn btn-sm btn-secondary" onclick="loadAgents()">รีเฟรช</button>
+    </div>
+    <div class="agent-grid" id="agentGrid">
+      <div class="text-dim text-sm">กำลังโหลด...</div>
+    </div>
+  </div>
+
+  <!-- Team List -->
+  <div class="section">
+    <div class="section-title">รายชื่อทีม</div>
+    <div id="teamList">
+      <div class="text-dim text-sm">กำลังโหลด...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 3: WORKSPACE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-workspace">
+  <!-- Mode Selector -->
+  <div class="mode-selector">
+    <div class="mode-btn active" data-mode="ask" onclick="selectMode('ask')">ถาม (Ask)</div>
+    <div class="mode-btn" data-mode="pipeline" onclick="selectMode('pipeline')">Pipeline</div>
+    <div class="mode-btn" data-mode="parallel" onclick="selectMode('parallel')">Parallel</div>
+    <div class="mode-btn" data-mode="debate" onclick="selectMode('debate')">Debate</div>
+  </div>
+
+  <div class="workspace-layout">
+    <!-- Left panel -->
+    <div>
+      <!-- Agent/Team selector -->
+      <div class="section" id="wsAgentSection">
+        <div class="section-title">เลือก Agent</div>
+        <div id="wsAgentSelector">
+          <select id="wsAgentSelect" class="w-full">
+            <option value="">-- เลือก Agent --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section hidden" id="wsTeamSection">
+        <div class="section-title">เลือกทีม / Agents</div>
+        <select id="wsTeamSelect" class="w-full mb-12">
+          <option value="">-- เลือกทีม --</option>
+        </select>
+        <div class="text-xs text-dim mb-12">หรือเลือก agents ทีละตัว:</div>
+        <div class="check-list" id="wsAgentChecklist"></div>
+      </div>
+
+      <!-- Debate config -->
+      <div class="section hidden" id="wsDebateConfig">
+        <div class="section-title">ตั้งค่า Debate</div>
+        <div class="form-group">
+          <label>จำนวนรอบ</label>
+          <input type="number" id="wsDebateRounds" value="2" min="1" max="5">
+        </div>
+      </div>
+
+      <!-- Task input -->
+      <div class="section">
+        <div class="section-title">งาน / คำถาม</div>
+        <textarea id="wsTask" rows="5" placeholder="พิมพ์งานหรือคำถามที่ต้องการ..."></textarea>
+        <div class="mt-12">
+          <button class="btn btn-primary w-full" id="wsRunBtn" onclick="runWorkspace()">เริ่มทำงาน</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right panel: Output -->
+    <div>
+      <!-- Progress indicators -->
+      <div id="wsPipelineStages" class="section hidden">
+        <div class="section-title">Pipeline Stages</div>
+        <div class="pipeline-stages" id="wsPipelineStagesList"></div>
+      </div>
+
+      <!-- Output terminal -->
+      <div class="section">
+        <div class="section-title flex justify-between">
+          <span>ผลลัพธ์</span>
+          <button class="btn btn-sm btn-danger" onclick="clearOutput()">ล้าง</button>
+        </div>
+        <div class="terminal" id="wsOutput">
+          <span class="line-system">พร้อมทำงาน — เลือกโหมดและ agent แล้วป้อนงาน</span>
+        </div>
+      </div>
+
+      <!-- Debate panel -->
+      <div id="wsDebatePanel" class="section hidden">
+        <div class="section-title">Debate Rounds</div>
+        <div id="wsDebateRounds"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 4: TRAINING
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-training">
+  <div class="two-col">
+    <!-- Distill -->
+    <div class="section">
+      <div class="section-title">สร้าง Dataset (Distillation)</div>
+      <div class="form-group mb-12">
+        <label>ชื่อ Dataset</label>
+        <input type="text" id="trDistName" placeholder="เช่น game-coder-data">
+      </div>
+      <div class="form-group mb-12">
+        <label>Model ครู (Teacher)</label>
+        <select id="trDistTeacher">
+          <option value="qwen3:14b">qwen3:14b</option>
+          <option value="qwen3:8b">qwen3:8b</option>
+          <option value="deepseek-coder-v2:16b">deepseek-coder-v2:16b</option>
+        </select>
+      </div>
+      <div class="form-group mb-12">
+        <label>หัวข้อ (บรรทัดละหัวข้อ)</label>
+        <textarea id="trDistTopics" rows="4" placeholder="Python OOP&#10;FastAPI&#10;Testing"></textarea>
+      </div>
+      <div class="form-group mb-16">
+        <label>ตัวอย่างต่อหัวข้อ</label>
+        <input type="number" id="trDistExamples" value="5" min="1" max="20">
+      </div>
+      <button class="btn btn-primary" onclick="startDistill()">เริ่ม Distillation</button>
+    </div>
+
+    <!-- Train -->
+    <div class="section">
+      <div class="section-title">เทรน Agent</div>
+      <div class="form-group mb-12">
+        <label>เลือก Agent</label>
+        <select id="trTrainAgent" class="w-full">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <div class="form-group mb-16">
+        <label>เลือก Dataset</label>
+        <select id="trTrainDataset" class="w-full">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="startTrain()">เริ่มเทรน</button>
+      <div id="trainProgress" class="hidden mt-12">
+        <div class="progress-bar"><div class="progress-fill" id="trainBar" style="width:0%"></div></div>
+        <div class="text-xs text-dim mt-8" id="trainMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Exam -->
+    <div class="section">
+      <div class="section-title">สอบ Agent</div>
+      <div class="form-group mb-12">
+        <label>เลือก Agent</label>
+        <select id="trExamAgent" class="w-full">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <div class="form-group mb-16">
+        <label>เลือกข้อสอบ</label>
+        <select id="trExamFile" class="w-full">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <button class="btn btn-secondary" onclick="startExam()">เริ่มสอบ</button>
+      <div id="examProgress" class="hidden mt-12">
+        <div class="progress-bar"><div class="progress-fill purple" id="examBar" style="width:0%"></div></div>
+        <div class="text-xs text-dim mt-8" id="examMsg"></div>
+      </div>
+      <div id="examResults" class="hidden mt-16"></div>
+    </div>
+
+    <!-- Full Training Pipeline -->
+    <div class="section">
+      <div class="section-title">Full Training Pipeline</div>
+      <div class="form-group mb-12">
+        <label>เลือก Agent</label>
+        <select id="trFullAgent" class="w-full">
+          <option value="">-- เลือก --</option>
+        </select>
+      </div>
+      <div class="form-group mb-12">
+        <label>Model ครู</label>
+        <select id="trFullTeacher">
+          <option value="qwen3:14b">qwen3:14b</option>
+          <option value="qwen3:8b">qwen3:8b</option>
+        </select>
+      </div>
+      <div class="form-group mb-12">
+        <label>หัวข้อ (บรรทัดละหัวข้อ)</label>
+        <textarea id="trFullTopics" rows="3" placeholder="หัวข้อ 1&#10;หัวข้อ 2"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="startFullTraining()">เริ่ม Full Training</button>
+
+      <!-- Step progress -->
+      <div id="fullTrainSteps" class="hidden mt-16">
+        <div class="train-steps">
+          <div class="train-step" id="ftStep1">สร้างข้อสอบ</div>
+          <div class="train-step" id="ftStep2">Pre-test</div>
+          <div class="train-step" id="ftStep3">Distill</div>
+          <div class="train-step" id="ftStep4">Train</div>
+          <div class="train-step" id="ftStep5">Post-test</div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="fullTrainBar" style="width:0%"></div></div>
+        <div class="text-xs text-dim mt-8" id="fullTrainMsg"></div>
+      </div>
+
+      <!-- Before/After comparison -->
+      <div id="fullTrainComparison" class="hidden mt-16">
+        <div class="text-sm text-dim mb-12">ผลเปรียบเทียบก่อน/หลังเทรน</div>
+        <div class="bar-chart" id="fullTrainChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Datasets & Results -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-title flex justify-between">
+        <span>Datasets</span>
+        <button class="btn btn-sm btn-secondary" onclick="loadDatasets()">รีเฟรช</button>
+      </div>
+      <div id="datasetsList">
+        <div class="text-dim text-sm">กำลังโหลด...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title flex justify-between">
+        <span>ผลการเทรน / สอบ</span>
+        <button class="btn btn-sm btn-secondary" onclick="loadTrainResults()">รีเฟรช</button>
+      </div>
+      <div id="trainResultsList" style="max-height:300px;overflow-y:auto;">
+        <div class="text-dim text-sm">กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ── State ─────────────────────────────────────────────────── */
+let currentTab = 'dashboard';
+let currentMode = 'ask';
+let agents = {};
+let teams = {};
+let socket = null;
+
+/* ── Socket.IO ─────────────────────────────────────────────── */
+function initSocket() {
+  socket = io();
+
+  socket.on('connect', () => {
+    document.getElementById('connDot').classList.add('connected');
+    document.getElementById('connText').textContent = 'เชื่อมต่อแล้ว';
+  });
+
+  socket.on('disconnect', () => {
+    document.getElementById('connDot').classList.remove('connected');
+    document.getElementById('connText').textContent = 'ขาดการเชื่อมต่อ';
+  });
+
+  socket.on('connected', (data) => {
+    console.log('Server connected:', data);
+  });
+
+  // Activity feed
+  socket.on('activity', (data) => {
+    prependActivity(data);
+  });
+
+  // Progress events (factory)
+  socket.on('progress', (data) => {
+    if (data.stage === 'create_agent') {
+      const el = document.getElementById('createAgentProgress');
+      el.classList.remove('hidden');
+      document.getElementById('createAgentBar').style.width = data.percent + '%';
+      document.getElementById('createAgentMsg').textContent = data.message;
+      if (data.done) {
+        setTimeout(() => { el.classList.add('hidden'); loadAgents(); }, 2000);
+      }
+    }
+    if (data.stage === 'create_team') {
+      const el = document.getElementById('createTeamProgress');
+      el.classList.remove('hidden');
+      document.getElementById('createTeamBar').style.width = data.percent + '%';
+      document.getElementById('createTeamMsg').textContent = data.message;
+      if (data.done) {
+        setTimeout(() => { el.classList.add('hidden'); loadAgents(); loadTeams(); }, 2000);
+      }
+    }
+  });
+
+  // Stream events (workspace — ask)
+  socket.on('stream', (data) => {
+    const out = document.getElementById('wsOutput');
+    if (data.done) {
+      // Remove cursor
+      const cursor = out.querySelector('.cursor-blink');
+      if (cursor) cursor.classList.remove('cursor-blink');
+      document.getElementById('wsRunBtn').disabled = false;
+      return;
+    }
+    // Remove old cursor
+    const oldCursor = out.querySelector('.cursor-blink');
+    if (oldCursor) oldCursor.classList.remove('cursor-blink');
+
+    const span = document.createElement('span');
+    span.className = 'line-output cursor-blink';
+    span.textContent = data.chunk;
+    out.appendChild(span);
+    out.scrollTop = out.scrollHeight;
+  });
+
+  // Run events (workspace — pipeline, parallel, debate)
+  socket.on('run_event', (data) => {
+    handleRunEvent(data);
+  });
+
+  // Train events
+  socket.on('train_event', (data) => {
+    handleTrainEvent(data);
+  });
+}
+
+/* ── Tabs ──────────────────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    const tabId = tab.getAttribute('data-tab');
+    document.getElementById('tab-' + tabId).classList.add('active');
+    currentTab = tabId;
+    if (tabId === 'dashboard') refreshDashboard();
+    if (tabId === 'factory') { loadAgents(); loadTeams(); }
+    if (tabId === 'workspace') refreshWorkspaceSelectors();
+    if (tabId === 'training') refreshTrainingSelectors();
+  });
+});
+
+/* ── API helpers ───────────────────────────────────────────── */
+async function api(url, opts) {
+  try {
+    const resp = await fetch(url, opts);
+    return await resp.json();
+  } catch (e) {
+    console.error('API error:', e);
+    return null;
+  }
+}
+
+function postJSON(url, body) {
+  return api(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+/* ── Dashboard ─────────────────────────────────────────────── */
+async function refreshDashboard() {
+  const [agentsData, teamsData, modelsData, datasetsData, systemData, activityData] = await Promise.all([
+    api('/api/agents'),
+    api('/api/teams'),
+    api('/api/models'),
+    api('/api/train/datasets'),
+    api('/api/system'),
+    api('/api/activity'),
+  ]);
+
+  if (agentsData) {
+    agents = agentsData;
+    document.getElementById('statAgents').textContent = Object.keys(agentsData).length;
+  }
+  if (teamsData) {
+    teams = teamsData;
+    document.getElementById('statTeams').textContent = Object.keys(teamsData).length;
+  }
+  if (modelsData) {
+    document.getElementById('statModels').textContent = (modelsData.models || []).length;
+  }
+  if (datasetsData) {
+    document.getElementById('statDatasets').textContent = datasetsData.length;
+  }
+
+  // System status
+  if (systemData) {
+    const dot = document.getElementById('ollamaStatusDot');
+    const txt = document.getElementById('ollamaStatusText');
+    if (systemData.ollama) {
+      dot.className = 'status-dot running';
+      txt.textContent = 'ออนไลน์';
+      txt.style.color = 'var(--green)';
+    } else {
+      dot.className = 'status-dot error';
+      txt.textContent = 'ออฟไลน์';
+      txt.style.color = 'var(--red)';
+    }
+
+    if (systemData.gpu) {
+      document.getElementById('gpuInfo').classList.remove('hidden');
+      document.getElementById('gpuNone').classList.add('hidden');
+      document.getElementById('gpuName').textContent = systemData.gpu.name;
+      const pct = Math.round(systemData.gpu.memory_used / systemData.gpu.memory_total * 100);
+      document.getElementById('gpuMemText').textContent =
+        `${systemData.gpu.memory_used} / ${systemData.gpu.memory_total} MB (${pct}%)`;
+      document.getElementById('gpuMemBar').style.width = pct + '%';
+      document.getElementById('gpuTemp').textContent = systemData.gpu.temperature;
+    } else {
+      document.getElementById('gpuInfo').classList.add('hidden');
+      document.getElementById('gpuNone').classList.remove('hidden');
+    }
+  }
+
+  // Activity
+  if (activityData && activityData.length > 0) {
+    const feed = document.getElementById('activityFeed');
+    feed.innerHTML = '';
+    activityData.forEach(a => prependActivity(a, true));
+  }
+}
+
+function prependActivity(a, append) {
+  const feed = document.getElementById('activityFeed');
+  // Clear placeholder
+  if (feed.querySelector('.text-center')) feed.innerHTML = '';
+
+  const div = document.createElement('div');
+  div.className = 'activity-item';
+  div.innerHTML = `
+    <span class="activity-time">${a.time}</span>
+    <span class="activity-badge ${a.status}">${a.action}</span>
+    <span class="activity-text">${a.detail}</span>
+  `;
+  if (append) {
+    feed.appendChild(div);
+  } else {
+    feed.prepend(div);
+  }
+
+  // Limit
+  while (feed.children.length > 50) feed.removeChild(feed.lastChild);
+}
+
+/* ── Factory ───────────────────────────────────────────────── */
+async function loadAgents() {
+  agents = await api('/api/agents') || {};
+  renderAgentGrid();
+}
+
+async function loadTeams() {
+  teams = await api('/api/teams') || {};
+  renderTeamList();
+}
+
+function renderAgentGrid() {
+  const grid = document.getElementById('agentGrid');
+  const keys = Object.keys(agents);
+  if (keys.length === 0) {
+    grid.innerHTML = '<div class="text-dim text-sm">ยังไม่มี agent</div>';
+    return;
+  }
+  grid.innerHTML = keys.map(k => {
+    const a = agents[k];
+    return `
+      <div class="agent-card">
+        <div class="agent-name"><span class="status-dot idle"></span>${k}</div>
+        <div class="agent-expertise">${a.expertise || ''}</div>
+        <div class="agent-meta">
+          <span>${a.base_model || ''}</span>
+          <span class="tag">${a.preset || 'auto'}</span>
+          <span>temp: ${a.temperature ?? ''}</span>
+        </div>
+        <div class="agent-actions">
+          <button class="btn btn-sm btn-secondary" onclick="testAgent('${k}')">ทดสอบ</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteAgent('${k}')">ลบ</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTeamList() {
+  const list = document.getElementById('teamList');
+  const keys = Object.keys(teams);
+  if (keys.length === 0) {
+    list.innerHTML = '<div class="text-dim text-sm">ยังไม่มีทีม</div>';
+    return;
+  }
+  list.innerHTML = keys.map(k => {
+    const t = teams[k];
+    const members = (t.members || []).map(m =>
+      `<span class="tag purple">${m}</span>`
+    ).join(' ');
+    return `
+      <div style="padding:12px;background:var(--panel-light);border-radius:8px;margin-bottom:8px;">
+        <div class="flex justify-between items-center mb-12">
+          <span class="font-mono" style="font-weight:600;color:var(--purple);">${k}</span>
+          <span class="text-xs text-dim">${(t.created || '').slice(0, 10)}</span>
+        </div>
+        <div class="flex flex-wrap gap-8">${members}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function createAgent() {
+  const name = document.getElementById('fAgentName').value.trim();
+  const expertise = document.getElementById('fAgentExpertise').value.trim();
+  if (!name || !expertise) return alert('กรุณาใส่ชื่อและความสามารถ');
+
+  const body = { name, expertise };
+  const preset = document.getElementById('fAgentPreset').value;
+  if (preset) body.preset = preset;
+  const baseModel = document.getElementById('fAgentBaseModel').value;
+  if (baseModel) body.base_model = baseModel;
+  body.temperature = parseFloat(document.getElementById('fAgentTemp').value);
+
+  await postJSON('/api/factory/create', body);
+}
+
+async function createTeam() {
+  const teamName = document.getElementById('fTeamName').value.trim();
+  const membersText = document.getElementById('fTeamMembers').value.trim();
+  if (!teamName || !membersText) return alert('กรุณาใส่ชื่อทีมและสมาชิก');
+
+  try {
+    const members = JSON.parse(membersText);
+    await postJSON('/api/factory/team', { team_name: teamName, members });
+  } catch (e) {
+    alert('JSON ไม่ถูกต้อง: ' + e.message);
+  }
+}
+
+async function deleteAgent(name) {
+  if (!confirm(`ลบ ${name}?`)) return;
+  await api('/api/factory/agent/' + encodeURIComponent(name), { method: 'DELETE' });
+  loadAgents();
+}
+
+function testAgent(name) {
+  // Switch to workspace tab and set agent
+  document.querySelector('.tab[data-tab="workspace"]').click();
+  selectMode('ask');
+  setTimeout(() => {
+    document.getElementById('wsAgentSelect').value = name;
+    document.getElementById('wsTask').value = 'สวัสดี แนะนำตัวหน่อย';
+    document.getElementById('wsTask').focus();
+  }, 100);
+}
+
+// Load presets/models into dropdowns
+async function loadFactoryDropdowns() {
+  const [presets, baseModels, models] = await Promise.all([
+    api('/api/presets'),
+    api('/api/base-models'),
+    api('/api/models'),
+  ]);
+
+  const presetSel = document.getElementById('fAgentPreset');
+  if (presets) {
+    Object.keys(presets).forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = k + ' (' + presets[k].base_model + ')';
+      presetSel.appendChild(opt);
+    });
+  }
+
+  const modelSel = document.getElementById('fAgentBaseModel');
+  if (baseModels) {
+    Object.keys(baseModels).forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = k + ' (' + baseModels[k].size + ')';
+      modelSel.appendChild(opt);
+    });
+  }
+
+  // Also populate distill teacher with available models
+  if (models && models.models) {
+    const teachers = [document.getElementById('trDistTeacher'), document.getElementById('trFullTeacher')];
+    models.models.forEach(m => {
+      teachers.forEach(sel => {
+        if (!Array.from(sel.options).find(o => o.value === m.name)) {
+          const opt = document.createElement('option');
+          opt.value = m.name;
+          opt.textContent = m.name;
+          sel.appendChild(opt);
+        }
+      });
+    });
+  }
+}
+
+// Temperature slider
+document.getElementById('fAgentTemp').addEventListener('input', (e) => {
+  document.getElementById('fTempVal').textContent = e.target.value;
+});
+
+/* ── Workspace ─────────────────────────────────────────────── */
+function selectMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
+
+  // Show/hide sections
+  const singleModes = ['ask'];
+  const multiModes = ['pipeline', 'parallel', 'debate'];
+
+  if (singleModes.includes(mode)) {
+    document.getElementById('wsAgentSection').classList.remove('hidden');
+    document.getElementById('wsTeamSection').classList.add('hidden');
+    document.getElementById('wsDebateConfig').classList.add('hidden');
+  } else {
+    document.getElementById('wsAgentSection').classList.add('hidden');
+    document.getElementById('wsTeamSection').classList.remove('hidden');
+    document.getElementById('wsDebateConfig').classList.toggle('hidden', mode !== 'debate');
+  }
+
+  document.getElementById('wsPipelineStages').classList.add('hidden');
+  document.getElementById('wsDebatePanel').classList.add('hidden');
+}
+
+async function refreshWorkspaceSelectors() {
+  agents = await api('/api/agents') || {};
+  teams = await api('/api/teams') || {};
+
+  // Single agent selector
+  const sel = document.getElementById('wsAgentSelect');
+  sel.innerHTML = '<option value="">-- เลือก Agent --</option>';
+  Object.keys(agents).forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k;
+    sel.appendChild(opt);
+  });
+
+  // Team selector
+  const tsel = document.getElementById('wsTeamSelect');
+  tsel.innerHTML = '<option value="">-- เลือกทีม --</option>';
+  Object.keys(teams).forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = k + ' (' + (teams[k].members || []).length + ' members)';
+    tsel.appendChild(opt);
+  });
+
+  // Agent checklist
+  const cl = document.getElementById('wsAgentChecklist');
+  cl.innerHTML = Object.keys(agents).map(k => `
+    <label class="check-item">
+      <input type="checkbox" value="${k}">
+      <span>${k}</span>
+    </label>
+  `).join('');
+}
+
+function getSelectedAgents() {
+  const teamSel = document.getElementById('wsTeamSelect').value;
+  if (teamSel && teams[teamSel]) {
+    return { team: teamSel, agents: teams[teamSel].members };
+  }
+  const checked = Array.from(
+    document.querySelectorAll('#wsAgentChecklist input:checked')
+  ).map(cb => cb.value);
+  return { agents: checked };
+}
+
+async function runWorkspace() {
+  const task = document.getElementById('wsTask').value.trim();
+  if (!task) return alert('กรุณาป้อนงาน');
+
+  document.getElementById('wsRunBtn').disabled = true;
+  clearOutput();
+
+  if (currentMode === 'ask') {
+    const agent = document.getElementById('wsAgentSelect').value;
+    if (!agent) return alert('กรุณาเลือก agent');
+    appendOutput(`> ถาม ${agent}: ${task}\n`, 'line-agent');
+    await postJSON('/api/run/ask', { agent, task });
+  }
+  else if (currentMode === 'pipeline') {
+    const { team, agents: agentList } = getSelectedAgents();
+    if (!team && agentList.length === 0) return alert('กรุณาเลือกทีมหรือ agents');
+    appendOutput(`> Pipeline: ${agentList.length || '?'} stages\n`, 'line-agent');
+
+    // Show pipeline stages
+    const stagesEl = document.getElementById('wsPipelineStages');
+    stagesEl.classList.remove('hidden');
+    document.getElementById('wsPipelineStagesList').innerHTML = '';
+
+    await postJSON('/api/run/pipeline', { task, agents: agentList, team });
+  }
+  else if (currentMode === 'parallel') {
+    const { team, agents: agentList } = getSelectedAgents();
+    if (!team && agentList.length === 0) return alert('กรุณาเลือกทีมหรือ agents');
+    appendOutput(`> Parallel: ${agentList.length || '?'} agents\n`, 'line-agent');
+    await postJSON('/api/run/parallel', { task, agents: agentList, team });
+  }
+  else if (currentMode === 'debate') {
+    const { agents: agentList } = getSelectedAgents();
+    if (agentList.length < 2) return alert('กรุณาเลือก agent อย่างน้อย 2 ตัว');
+    const rounds = parseInt(document.getElementById('wsDebateRounds').value) || 2;
+    appendOutput(`> Debate: ${agentList.length} agents, ${rounds} rounds\n`, 'line-agent');
+
+    document.getElementById('wsDebatePanel').classList.remove('hidden');
+    document.getElementById('wsDebateRounds').innerHTML = '';
+
+    await postJSON('/api/run/debate', { question: task, agents: agentList, rounds });
+  }
+}
+
+function handleRunEvent(data) {
+  if (data.mode === 'pipeline') {
+    if (data.status === 'running') {
+      appendOutput(`\n--- Stage ${data.stage}/${data.total}: ${data.agent} ---\n`, 'line-agent');
+      // Add to pipeline stages panel
+      const stagesList = document.getElementById('wsPipelineStagesList');
+      let stageEl = document.getElementById('pstage-' + data.stage);
+      if (!stageEl) {
+        stageEl = document.createElement('div');
+        stageEl.id = 'pstage-' + data.stage;
+        stageEl.className = 'pipeline-stage running';
+        stageEl.innerHTML = `<span class="spinner"></span> <span>Stage ${data.stage}: ${data.agent}</span>`;
+        stagesList.appendChild(stageEl);
+      }
+    }
+    else if (data.status === 'done' || data.status === 'error') {
+      const stageEl = document.getElementById('pstage-' + data.stage);
+      if (stageEl) {
+        stageEl.className = 'pipeline-stage ' + (data.status === 'done' ? 'done' : 'error');
+        const icon = data.status === 'done' ? '&#10003;' : '&#10007;';
+        stageEl.innerHTML = `<span>${icon}</span> <span>Stage ${data.stage}: ${data.agent}</span>`;
+      }
+      if (data.response) {
+        appendOutput(data.response + '\n', 'line-output');
+      }
+      if (data.error) {
+        appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+      }
+    }
+    else if (data.status === 'complete') {
+      appendOutput('\n=== Pipeline เสร็จสิ้น ===\n', 'line-success');
+      document.getElementById('wsRunBtn').disabled = false;
+    }
+  }
+  else if (data.mode === 'parallel') {
+    if (data.status === 'running') {
+      appendOutput(`\n[${data.agent}] กำลังทำงาน...\n`, 'line-agent');
+    }
+    else if (data.status === 'done' || data.status === 'error') {
+      appendOutput(`\n--- ${data.agent} ---\n`, 'line-agent');
+      if (data.response) appendOutput(data.response + '\n', 'line-output');
+      if (data.error) appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+    }
+    else if (data.status === 'complete') {
+      appendOutput('\n=== Parallel เสร็จสิ้น ===\n', 'line-success');
+      document.getElementById('wsRunBtn').disabled = false;
+    }
+  }
+  else if (data.mode === 'debate') {
+    const panel = document.getElementById('wsDebateRounds');
+    if (data.status === 'round_start') {
+      const roundDiv = document.createElement('div');
+      roundDiv.className = 'debate-round';
+      roundDiv.id = 'debate-round-' + data.round;
+      roundDiv.innerHTML = `<div class="debate-round-title">รอบที่ ${data.round}/${data.total_rounds}</div>`;
+      panel.appendChild(roundDiv);
+    }
+    else if (data.status === 'running') {
+      appendOutput(`[รอบ ${data.round}] ${data.agent} กำลังคิด...\n`, 'line-system');
+    }
+    else if (data.status === 'done') {
+      const roundDiv = document.getElementById('debate-round-' + data.round);
+      if (roundDiv) {
+        const entry = document.createElement('div');
+        entry.className = 'debate-entry';
+        entry.innerHTML = `
+          <div class="debate-agent">${data.agent}</div>
+          <div class="debate-text">${escapeHtml(data.response || '')}</div>
+        `;
+        roundDiv.appendChild(entry);
+      }
+      appendOutput(`[รอบ ${data.round}] ${data.agent} ตอบแล้ว\n`, 'line-success');
+    }
+    else if (data.status === 'complete') {
+      appendOutput('\n=== Debate เสร็จสิ้น ===\n', 'line-success');
+      document.getElementById('wsRunBtn').disabled = false;
+    }
+  }
+
+  if (data.error && !data.mode) {
+    appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+    document.getElementById('wsRunBtn').disabled = false;
+  }
+}
+
+function appendOutput(text, cls) {
+  const out = document.getElementById('wsOutput');
+  const span = document.createElement('span');
+  span.className = cls || 'line-output';
+  span.textContent = text;
+  out.appendChild(span);
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearOutput() {
+  document.getElementById('wsOutput').innerHTML = '';
+  document.getElementById('wsPipelineStagesList').innerHTML = '';
+  document.getElementById('wsPipelineStages').classList.add('hidden');
+  document.getElementById('wsDebatePanel').classList.add('hidden');
+  if (document.getElementById('wsDebateRounds'))
+    document.getElementById('wsDebateRounds').innerHTML = '';
+}
+
+/* ── Training ──────────────────────────────────────────────── */
+async function refreshTrainingSelectors() {
+  agents = await api('/api/agents') || {};
+  const datasets = await api('/api/train/datasets') || [];
+  const exams = await api('/api/train/exams') || [];
+
+  // Populate agent selects
+  ['trTrainAgent', 'trExamAgent', 'trFullAgent'].forEach(id => {
+    const sel = document.getElementById(id);
+    const val = sel.value;
+    sel.innerHTML = '<option value="">-- เลือก --</option>';
+    Object.keys(agents).forEach(k => {
+      const opt = document.createElement('option');
+      opt.value = k;
+      opt.textContent = k;
+      sel.appendChild(opt);
+    });
+    sel.value = val;
+  });
+
+  // Dataset select
+  const dsSel = document.getElementById('trTrainDataset');
+  dsSel.innerHTML = '<option value="">-- เลือก --</option>';
+  datasets.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.name;
+    opt.textContent = d.name + ' (' + d.examples + ' examples)';
+    dsSel.appendChild(opt);
+  });
+
+  // Exam select
+  const exSel = document.getElementById('trExamFile');
+  exSel.innerHTML = '<option value="">-- เลือก --</option>';
+  exams.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.file;
+    opt.textContent = e.name + ' (' + e.questions + ' questions)';
+    exSel.appendChild(opt);
+  });
+
+  loadDatasets();
+  loadTrainResults();
+}
+
+async function loadDatasets() {
+  const datasets = await api('/api/train/datasets') || [];
+  const el = document.getElementById('datasetsList');
+  if (datasets.length === 0) {
+    el.innerHTML = '<div class="text-dim text-sm">ยังไม่มี dataset</div>';
+    return;
+  }
+  el.innerHTML = datasets.map(d => `
+    <div style="padding:8px 12px;background:var(--panel-light);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span class="font-mono text-sm" style="color:var(--green)">${d.name}</span>
+        <span class="text-xs text-dim" style="margin-left:8px">${d.examples} examples</span>
+      </div>
+      <span class="text-xs text-dim">${formatSize(d.size)}</span>
+    </div>
+  `).join('');
+}
+
+async function loadTrainResults() {
+  const results = await api('/api/train/results') || [];
+  const el = document.getElementById('trainResultsList');
+  if (results.length === 0) {
+    el.innerHTML = '<div class="text-dim text-sm">ยังไม่มีผล</div>';
+    return;
+  }
+  el.innerHTML = results.slice(0, 20).map(r => {
+    const isExam = r._file && r._file.startsWith('exam_');
+    const isTrain = r._file && r._file.startsWith('train_');
+    const type = isExam ? 'สอบ' : isTrain ? 'เทรน' : 'อื่นๆ';
+    const color = isExam ? 'purple' : 'green';
+    let detail = '';
+    if (isExam) {
+      detail = `${r.percentage?.toFixed(1) || '?'}% — ${r.grade || ''}`;
+    } else if (isTrain) {
+      detail = `${r.examples_count || '?'} examples`;
+    }
+    const date = (r.exam_date || r.trained_at || '').slice(0, 16).replace('T', ' ');
+    return `
+      <div style="padding:8px 12px;background:var(--panel-light);border-radius:6px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <span class="tag ${color}">${type}</span>
+          <span class="font-mono text-sm">${r.agent || ''}</span>
+          <span class="text-xs text-dim" style="margin-left:8px">${detail}</span>
+        </div>
+        <span class="text-xs text-dim">${date}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+async function startDistill() {
+  const name = document.getElementById('trDistName').value.trim();
+  const teacher = document.getElementById('trDistTeacher').value;
+  const topicsText = document.getElementById('trDistTopics').value.trim();
+  const examples = parseInt(document.getElementById('trDistExamples').value) || 5;
+  if (!name || !topicsText) return alert('กรุณาใส่ชื่อ dataset และหัวข้อ');
+
+  const topics = topicsText.split('\n').map(t => t.trim()).filter(Boolean);
+  await postJSON('/api/train/distill', {
+    dataset_name: name, teacher, topics, examples_per_topic: examples,
+  });
+}
+
+async function startTrain() {
+  const agent = document.getElementById('trTrainAgent').value;
+  const dataset = document.getElementById('trTrainDataset').value;
+  if (!agent || !dataset) return alert('กรุณาเลือก agent และ dataset');
+
+  document.getElementById('trainProgress').classList.remove('hidden');
+  document.getElementById('trainBar').style.width = '30%';
+  document.getElementById('trainMsg').textContent = 'กำลังเทรน...';
+
+  await postJSON('/api/train/train', { agent_name: agent, dataset_name: dataset });
+}
+
+async function startExam() {
+  const agent = document.getElementById('trExamAgent').value;
+  const examFile = document.getElementById('trExamFile').value;
+  if (!agent || !examFile) return alert('กรุณาเลือก agent และข้อสอบ');
+
+  document.getElementById('examProgress').classList.remove('hidden');
+  document.getElementById('examBar').style.width = '0%';
+  document.getElementById('examMsg').textContent = 'เริ่มสอบ...';
+  document.getElementById('examResults').classList.add('hidden');
+
+  await postJSON('/api/train/exam', { agent_name: agent, exam_file: examFile });
+}
+
+async function startFullTraining() {
+  const agent = document.getElementById('trFullAgent').value;
+  const teacher = document.getElementById('trFullTeacher').value;
+  const topicsText = document.getElementById('trFullTopics').value.trim();
+  if (!agent || !topicsText) return alert('กรุณาเลือก agent และหัวข้อ');
+
+  const topics = topicsText.split('\n').map(t => t.trim()).filter(Boolean);
+
+  document.getElementById('fullTrainSteps').classList.remove('hidden');
+  document.getElementById('fullTrainComparison').classList.add('hidden');
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('ftStep' + i).className = 'train-step';
+  }
+
+  await postJSON('/api/train/full', {
+    agent_name: agent, topics, teacher,
+    examples_per_topic: 5, exam_questions: 10,
+  });
+}
+
+function handleTrainEvent(data) {
+  if (data.stage === 'train') {
+    const bar = document.getElementById('trainBar');
+    const msg = document.getElementById('trainMsg');
+    if (bar) bar.style.width = (data.percent || 0) + '%';
+    if (msg) msg.textContent = data.message || '';
+    if (data.status === 'complete') {
+      setTimeout(() => {
+        document.getElementById('trainProgress').classList.add('hidden');
+        loadDatasets();
+        loadTrainResults();
+      }, 2000);
+    }
+  }
+
+  if (data.stage === 'exam') {
+    const bar = document.getElementById('examBar');
+    const msg = document.getElementById('examMsg');
+    if (bar) bar.style.width = (data.percent || 0) + '%';
+    if (msg) msg.textContent = data.message || '';
+
+    if (data.status === 'complete') {
+      document.getElementById('examProgress').classList.add('hidden');
+      showExamResults(data);
+      loadTrainResults();
+    }
+    if (data.status === 'error') {
+      if (msg) msg.textContent = data.message;
+    }
+  }
+
+  if (data.stage === 'exam_result') {
+    // Individual question result — just update progress message
+    const msg = document.getElementById('examMsg');
+    const icon = data.passed ? '&#10003;' : '&#10007;';
+    if (msg) msg.innerHTML = `Q${data.question_num}: ${data.score}/${data.max} ${icon}`;
+  }
+
+  if (data.stage === 'full') {
+    // Update step indicators
+    if (data.step) {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById('ftStep' + i);
+        if (i < data.step) el.className = 'train-step done';
+        else if (i === data.step) el.className = 'train-step active';
+        else el.className = 'train-step';
+      }
+    }
+    document.getElementById('fullTrainBar').style.width = (data.percent || 0) + '%';
+    document.getElementById('fullTrainMsg').textContent = data.message || '';
+
+    if (data.status === 'complete' && data.summary) {
+      // Mark all done
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById('ftStep' + i).className = 'train-step done';
+      }
+
+      // Show comparison chart
+      if (data.summary.pre && data.summary.post) {
+        const chartEl = document.getElementById('fullTrainChart');
+        document.getElementById('fullTrainComparison').classList.remove('hidden');
+
+        const pre = data.summary.pre.percentage;
+        const post = data.summary.post.percentage;
+        chartEl.innerHTML = `
+          <div class="bar-col">
+            <div class="bar-value" style="color:var(--red)">${pre.toFixed(1)}%</div>
+            <div class="bar-fill" style="height:${pre}%;background:linear-gradient(0deg,var(--red),var(--orange));"></div>
+            <div class="bar-label">ก่อนเทรน<br>${data.summary.pre.grade}</div>
+          </div>
+          <div class="bar-col">
+            <div class="bar-value" style="color:var(--green)">${post.toFixed(1)}%</div>
+            <div class="bar-fill" style="height:${post}%;background:linear-gradient(0deg,var(--green),var(--cyan));"></div>
+            <div class="bar-label">หลังเทรน<br>${data.summary.post.grade}</div>
+          </div>
+          <div class="bar-col" style="justify-content:center;">
+            <div class="bar-value" style="color:${data.summary.improvement >= 0 ? 'var(--green)' : 'var(--red)'}">
+              ${data.summary.improvement >= 0 ? '+' : ''}${data.summary.improvement.toFixed(1)}%
+            </div>
+            <div class="bar-label">เปลี่ยนแปลง</div>
+          </div>
+        `;
+      }
+      loadTrainResults();
+    }
+  }
+
+  if (data.stage === 'full_pre_exam' || data.stage === 'full_post_exam') {
+    // Just log it
+    const label = data.stage === 'full_pre_exam' ? 'Pre-test' : 'Post-test';
+    document.getElementById('fullTrainMsg').textContent =
+      `${label}: ${data.percentage?.toFixed(1)}% (${data.grade})`;
+  }
+
+  if (data.stage === 'distill') {
+    if (data.status === 'complete') {
+      loadDatasets();
+    }
+  }
+}
+
+function showExamResults(data) {
+  const el = document.getElementById('examResults');
+  el.classList.remove('hidden');
+
+  let html = `
+    <div style="padding:12px;background:var(--panel-light);border-radius:8px;margin-bottom:12px;text-align:center;">
+      <div class="text-sm text-dim">ผลสอบ: <span class="font-mono" style="color:var(--cyan)">${data.agent || ''}</span></div>
+      <div style="font-size:28px;font-weight:700;font-family:var(--font-mono);margin:8px 0;color:${data.percentage >= 60 ? 'var(--green)' : 'var(--red)'}">
+        ${data.percentage?.toFixed(1) || 0}%
+      </div>
+      <div class="text-sm">${data.grade || ''}</div>
+      <div class="text-xs text-dim mt-8">${data.score || 0} / ${data.total || 0} คะแนน</div>
+    </div>
+  `;
+
+  if (data.results && data.results.length > 0) {
+    html += '<table class="exam-results-table"><thead><tr><th>#</th><th>คำถาม</th><th>คะแนน</th></tr></thead><tbody>';
+    data.results.forEach((r, i) => {
+      const cls = r.passed ? 'pass' : 'fail';
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td class="text-sm">${escapeHtml((r.question || '').substring(0, 80))}...</td>
+          <td><span class="score-badge ${cls}">${r.score}/${r.max}</span></td>
+        </tr>
+      `;
+    });
+    html += '</tbody></table>';
+  }
+
+  el.innerHTML = html;
+}
+
+/* ── Utilities ─────────────────────────────────────────────── */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+/* ── Init ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  initSocket();
+  loadFactoryDropdowns();
+  refreshDashboard();
+
+  // Auto-refresh dashboard every 30s
+  setInterval(() => {
+    if (currentTab === 'dashboard') refreshDashboard();
+  }, 30000);
+});
+</script>
+</body>
+</html>
