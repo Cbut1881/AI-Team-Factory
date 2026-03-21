@@ -850,6 +850,20 @@ def api_models():
         return jsonify({"status": "error", "error": str(e), "models": []})
 
 
+@app.route("/api/models/<path:name>")
+def api_model_detail(name):
+    try:
+        result = subprocess.run(
+            ["ollama", "show", name],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            return jsonify({"status": "ok", "detail": result.stdout})
+        return jsonify({"status": "error", "detail": result.stderr or "Model not found"})
+    except Exception as e:
+        return jsonify({"status": "error", "detail": str(e)})
+
+
 @app.route("/api/system")
 def api_system():
     # Check Ollama

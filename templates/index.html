@@ -1118,6 +1118,110 @@ input[type="range"]::-webkit-slider-thumb {
 .text-xs { font-size: 11px; }
 .font-mono { font-family: var(--font-mono); }
 .hidden { display: none !important; }
+
+/* ── Model Table ──────────────────────────────────────────── */
+.model-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  font-size: 13px;
+}
+
+.model-table thead th {
+  text-align: left;
+  padding: 10px 14px;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--border);
+}
+
+.model-table tbody tr {
+  transition: all 0.2s;
+}
+
+.model-table tbody tr:hover {
+  transform: translateX(4px);
+}
+
+.model-table tbody tr:hover td {
+  background: rgba(0,240,255,0.05);
+}
+
+.model-table tbody td {
+  padding: 12px 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  transition: background 0.2s;
+}
+
+.model-table tbody td:first-child {
+  border-left: 1px solid var(--glass-border);
+  border-radius: 8px 0 0 8px;
+}
+
+.model-table tbody td:last-child {
+  border-right: 1px solid var(--glass-border);
+  border-radius: 0 8px 8px 0;
+}
+
+.model-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.model-icon.agent {
+  background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(123,47,247,0.15));
+  border: 1px solid rgba(0,240,255,0.2);
+}
+
+.model-icon.base {
+  background: linear-gradient(135deg, rgba(0,255,136,0.15), rgba(0,240,255,0.15));
+  border: 1px solid rgba(0,255,136,0.2);
+}
+
+.model-name-text {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.model-type-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.model-type-badge.agent {
+  background: rgba(0,240,255,0.12);
+  color: var(--cyan);
+  border: 1px solid rgba(0,240,255,0.2);
+}
+
+.model-type-badge.base {
+  background: rgba(0,255,136,0.12);
+  color: var(--green);
+  border: 1px solid rgba(0,255,136,0.2);
+}
 .text-center { text-align: center; }
 .w-full { width: 100%; }
 </style>
@@ -1149,6 +1253,7 @@ input[type="range"]::-webkit-slider-thumb {
   <div class="tab" data-tab="factory">โรงงาน</div>
   <div class="tab" data-tab="workspace">สนามงาน</div>
   <div class="tab" data-tab="training">ห้องฝึกอบรม</div>
+  <div class="tab" data-tab="models">Models</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -1536,6 +1641,80 @@ input[type="range"]::-webkit-slider-thumb {
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     TAB 5: MODELS
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="tab-content" id="tab-models">
+  <!-- Stats row -->
+  <div class="cards-row" id="modelStatsRow">
+    <div class="stat-card">
+      <div class="label">Total Models</div>
+      <div class="value" id="modelStatTotal">0</div>
+      <div class="icon">&#x1F9E0;</div>
+    </div>
+    <div class="stat-card purple">
+      <div class="label">Custom Agents</div>
+      <div class="value" id="modelStatAgents">0</div>
+      <div class="icon">&#x1F916;</div>
+    </div>
+    <div class="stat-card green">
+      <div class="label">Base Models</div>
+      <div class="value" id="modelStatBase">0</div>
+      <div class="icon">&#x1F4E6;</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="label">Total Size</div>
+      <div class="value" id="modelStatSize" style="font-size:24px;">-</div>
+      <div class="icon">&#x1F4BE;</div>
+    </div>
+  </div>
+
+  <!-- Search & Filter -->
+  <div class="section">
+    <div class="section-title flex justify-between">
+      <span>Ollama Models</span>
+      <div class="flex gap-8 items-center">
+        <input type="text" id="modelSearch" placeholder="ค้นหา model..." style="width:220px;" oninput="filterModels()">
+        <select id="modelFilter" onchange="filterModels()" style="width:140px;">
+          <option value="all">ทั้งหมด</option>
+          <option value="agent">Custom Agents</option>
+          <option value="base">Base Models</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="loadModelsPage()">รีเฟรช</button>
+      </div>
+    </div>
+
+    <!-- Model table -->
+    <div style="overflow-x:auto;">
+      <table class="model-table" id="modelTable">
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>ID</th>
+            <th>Size</th>
+            <th>Modified</th>
+            <th>Type</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="modelTableBody">
+          <tr><td colspan="6" class="text-center text-dim" style="padding:40px;">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Model Detail Modal -->
+  <div class="section hidden" id="modelDetailSection">
+    <div class="section-title flex justify-between">
+      <span id="modelDetailName">Model Details</span>
+      <button class="btn btn-sm btn-danger" onclick="document.getElementById('modelDetailSection').classList.add('hidden')">ปิด</button>
+    </div>
+    <div class="terminal" id="modelDetailContent" style="max-height:400px;">
+    </div>
+  </div>
+</div>
+
 <!-- Toast Container -->
 <div id="toastContainer"></div>
 
@@ -1669,6 +1848,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tabId === 'factory') { loadAgents(); loadTeams(); }
     if (tabId === 'workspace') refreshWorkspaceSelectors();
     if (tabId === 'training') refreshTrainingSelectors();
+    if (tabId === 'models') loadModelsPage();
   });
 });
 
@@ -2452,6 +2632,116 @@ function showExamResults(data) {
   }
 
   el.innerHTML = html;
+}
+
+/* ── Models Page ───────────────────────────────────────────── */
+let allModels = [];
+
+async function loadModelsPage() {
+  const data = await api('/api/models');
+  if (!data || !data.models) {
+    document.getElementById('modelTableBody').innerHTML =
+      '<tr><td colspan="6" class="text-center text-dim" style="padding:40px;">ไม่สามารถโหลด models ได้ (Ollama อาจไม่ได้ทำงาน)</td></tr>';
+    return;
+  }
+
+  allModels = data.models;
+  const agentCount = allModels.filter(m => m.name.startsWith('ai-')).length;
+  const baseCount = allModels.length - agentCount;
+
+  document.getElementById('modelStatTotal').textContent = allModels.length;
+  document.getElementById('modelStatAgents').textContent = agentCount;
+  document.getElementById('modelStatBase').textContent = baseCount;
+
+  // Calculate total size
+  let totalGB = 0;
+  allModels.forEach(m => {
+    const sizeStr = (m.size || '').toLowerCase();
+    const num = parseFloat(sizeStr);
+    if (sizeStr.includes('gb')) totalGB += num;
+    else if (sizeStr.includes('mb')) totalGB += num / 1024;
+  });
+  document.getElementById('modelStatSize').textContent = totalGB.toFixed(1) + ' GB';
+
+  filterModels();
+}
+
+function filterModels() {
+  const search = (document.getElementById('modelSearch').value || '').toLowerCase();
+  const filter = document.getElementById('modelFilter').value;
+
+  let filtered = allModels;
+  if (filter === 'agent') filtered = filtered.filter(m => m.name.startsWith('ai-'));
+  if (filter === 'base') filtered = filtered.filter(m => !m.name.startsWith('ai-'));
+  if (search) filtered = filtered.filter(m => m.name.toLowerCase().includes(search));
+
+  renderModelTable(filtered);
+}
+
+function renderModelTable(models) {
+  const tbody = document.getElementById('modelTableBody');
+  if (models.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-dim" style="padding:40px;">ไม่พบ model</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = models.map(m => {
+    const isAgent = m.name.startsWith('ai-');
+    const type = isAgent ? 'agent' : 'base';
+    const icon = isAgent ? '&#x1F916;' : '&#x1F4E6;';
+    const typeLabel = isAgent ? 'Custom Agent' : 'Base Model';
+    const agentInfo = isAgent ? (agents[m.name] || {}) : {};
+    const expertise = agentInfo.expertise ? `<div class="text-xs text-dim" style="margin-top:2px;">${escapeHtml(agentInfo.expertise.substring(0, 50))}</div>` : '';
+
+    return `
+      <tr>
+        <td>
+          <div class="model-name-cell">
+            <div class="model-icon ${type}">${icon}</div>
+            <div>
+              <div class="model-name-text">${escapeHtml(m.name)}</div>
+              ${expertise}
+            </div>
+          </div>
+        </td>
+        <td><span class="font-mono text-xs text-dim">${escapeHtml(m.id || '-').substring(0, 12)}</span></td>
+        <td><span class="font-mono text-sm">${escapeHtml(m.size || '-')}</span></td>
+        <td><span class="text-xs text-dim">${escapeHtml(m.modified || '-')}</span></td>
+        <td><span class="model-type-badge ${type}">${typeLabel}</span></td>
+        <td>
+          <div class="flex gap-8">
+            <button class="btn btn-sm btn-secondary" onclick="showModelDetail('${escapeHtml(m.name)}')">ดูรายละเอียด</button>
+            ${isAgent ? `<button class="btn btn-sm btn-primary" onclick="testAgent('${escapeHtml(m.name)}')">ทดสอบ</button>` : ''}
+            ${isAgent ? `<button class="btn btn-sm btn-danger" onclick="deleteModelFromPage('${escapeHtml(m.name)}')">ลบ</button>` : ''}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function showModelDetail(name) {
+  const section = document.getElementById('modelDetailSection');
+  const content = document.getElementById('modelDetailContent');
+  section.classList.remove('hidden');
+  document.getElementById('modelDetailName').textContent = name;
+  content.innerHTML = '<span class="line-system">กำลังโหลด...</span>';
+
+  const data = await api('/api/models/' + encodeURIComponent(name));
+  if (data && data.detail) {
+    content.innerHTML = `<span class="line-output">${escapeHtml(data.detail)}</span>`;
+  } else {
+    content.innerHTML = '<span class="line-error">ไม่สามารถโหลดรายละเอียดได้</span>';
+  }
+
+  section.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deleteModelFromPage(name) {
+  if (!confirm('ลบ ' + name + '?')) return;
+  await api('/api/factory/agent/' + encodeURIComponent(name), { method: 'DELETE' });
+  showToast(name + ' ถูกลบแล้ว', 'warning');
+  loadModelsPage();
 }
 
 /* ── Utilities ─────────────────────────────────────────────── */
