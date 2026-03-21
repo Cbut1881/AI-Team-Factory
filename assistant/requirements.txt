@@ -4,6 +4,7 @@ requests>=2.31
 pyautogui>=0.9
 SpeechRecognition>=3.10
 edge-tts>=6.1
+pyttsx3>=2.90
 opencv-python>=4.8
 keyboard>=0.13
 Pillow>=10.0

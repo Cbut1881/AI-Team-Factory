@@ -220,25 +220,66 @@ class VoiceSpeaker(QObject):
     async def _generate_audio(self, text: str) -> Optional[Path]:
         """Generate an MP3 file from *text* using Edge TTS.
 
+        Falls back to pyttsx3 (Windows SAPI) if Edge TTS is unavailable.
         Returns the path to the generated file, or ``None`` on failure.
         """
-        import edge_tts  # type: ignore[import-untyped]
+        # Try Edge TTS first (high-quality, needs internet)
+        path = await self._try_edge_tts(text)
+        if path:
+            return path
+
+        # Fallback: pyttsx3 offline TTS
+        return self._try_pyttsx3(text)
+
+    async def _try_edge_tts(self, text: str) -> Optional[Path]:
+        """Try generating audio via Edge TTS."""
+        try:
+            import edge_tts  # type: ignore[import-untyped]
+        except ImportError:
+            return None
 
         voice = self._select_voice(text)
         filename = f"tts_{int(time.time() * 1000)}.mp3"
         output_path = self._tmp_dir / filename
 
-        logger.debug("Generating TTS: voice=%s, file=%s", voice, output_path)
+        logger.debug("Generating TTS (Edge): voice=%s", voice)
 
         try:
             communicate = edge_tts.Communicate(text, voice)
             await communicate.save(str(output_path))
         except Exception as exc:  # noqa: BLE001
-            logger.error("Edge TTS generation failed: %s", exc)
+            logger.warning("Edge TTS failed, trying pyttsx3: %s", exc)
             return None
 
         if self._stop_event.is_set():
-            # Generation finished but stop was requested – discard
+            output_path.unlink(missing_ok=True)
+            return None
+
+        return output_path
+
+    def _try_pyttsx3(self, text: str) -> Optional[Path]:
+        """Fallback TTS using pyttsx3 (Windows SAPI, offline)."""
+        try:
+            import pyttsx3  # type: ignore[import-untyped]
+        except ImportError:
+            logger.error("No TTS engine available (edge_tts and pyttsx3 both missing)")
+            return None
+
+        filename = f"tts_{int(time.time() * 1000)}.wav"
+        output_path = self._tmp_dir / filename
+
+        logger.debug("Generating TTS (pyttsx3 fallback): %s", output_path)
+
+        try:
+            engine = pyttsx3.init()
+            engine.setProperty("rate", 170)
+            engine.save_to_file(text, str(output_path))
+            engine.runAndWait()
+        except Exception as exc:  # noqa: BLE001
+            logger.error("pyttsx3 TTS failed: %s", exc)
+            return None
+
+        if self._stop_event.is_set():
             output_path.unlink(missing_ok=True)
             return None
 

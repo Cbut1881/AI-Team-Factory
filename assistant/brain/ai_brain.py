@@ -58,7 +58,7 @@ DEFAULT_MODEL: str = "claude-sonnet-4-20250514"
 MAX_TOKENS: int = 8192
 """Maximum tokens for Claude responses."""
 
-OLLAMA_DEFAULT_MODEL: str = "llama3.1:8b"
+OLLAMA_DEFAULT_MODEL: str = "deepseek-coder-v2:16b"
 """Default Ollama model for local fallback."""
 
 OLLAMA_BASE_URL: str = "http://localhost:11434"
