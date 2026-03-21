@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════════
-   CSS — Futuristic Dark Theme
+   CSS — Futuristic Dark Theme (Enhanced)
    ══════════════════════════════════════════════════════════════ */
 :root {
   --bg: #0a0a0f;
@@ -30,6 +30,13 @@
   --radius: 12px;
   --font-ui: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* New glass & gradient variables */
+  --glass-bg: rgba(26, 26, 46, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --gradient-1: linear-gradient(135deg, #00f0ff, #7b2ff7);
+  --gradient-2: linear-gradient(135deg, #7b2ff7, #ff3b5c);
+  --gradient-3: linear-gradient(135deg, #00ff88, #00f0ff);
 }
 
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -42,6 +49,34 @@ body {
   overflow-x: hidden;
 }
 
+/* ── Animated Grid Background ─────────────────────────────── */
+.grid-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridMove 20s linear infinite;
+}
+
+.grid-bg::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,240,255,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 80%, rgba(123,47,247,0.04) 0%, transparent 50%);
+}
+
+@keyframes gridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(60px, 60px); }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -50,8 +85,10 @@ body {
 
 /* ── Header ────────────────────────────────────────────────── */
 .header {
-  background: linear-gradient(135deg, var(--panel) 0%, #12122a 100%);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(26,26,46,0.95) 0%, rgba(18,18,42,0.95) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
   padding: 12px 24px;
   display: flex;
   align-items: center;
@@ -61,13 +98,38 @@ body {
   z-index: 100;
 }
 
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), var(--cyan), transparent);
+  opacity: 0.6;
+  animation: headerGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes headerGlow {
+  0% { opacity: 0.3; }
+  100% { opacity: 0.8; }
+}
+
 .header-title {
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  background: linear-gradient(135deg, var(--cyan), var(--purple), var(--cyan));
+  background-size: 200% 200%;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: 1px;
+  animation: titleGradient 6s ease infinite;
+}
+
+@keyframes titleGradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .header-subtitle {
@@ -106,9 +168,13 @@ body {
 .tabs {
   display: flex;
   gap: 0;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  background: rgba(26,26,46,0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
   padding: 0 16px;
+  position: relative;
+  z-index: 90;
 }
 
 .tab {
@@ -118,8 +184,22 @@ body {
   font-weight: 500;
   color: var(--text-dim);
   border-bottom: 2px solid transparent;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   user-select: none;
+  position: relative;
+}
+
+.tab::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background: var(--text-dim);
+  opacity: 0.4;
+  transition: all 0.3s ease;
+  vertical-align: middle;
 }
 
 .tab:hover {
@@ -127,10 +207,21 @@ body {
   background: rgba(0,240,255,0.05);
 }
 
+.tab:hover::before {
+  opacity: 0.7;
+  background: var(--cyan);
+}
+
 .tab.active {
   color: var(--cyan);
   border-bottom-color: var(--cyan);
   background: rgba(0,240,255,0.08);
+}
+
+.tab.active::before {
+  opacity: 1;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
 }
 
 /* ── Tab Content ───────────────────────────────────────────── */
@@ -140,6 +231,8 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   animation: fadeIn 0.3s;
+  position: relative;
+  z-index: 1;
 }
 
 .tab-content.active { display: block; }
@@ -155,18 +248,74 @@ body {
 }
 
 .stat-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   padding: 20px;
   position: relative;
   overflow: hidden;
-  transition: border-color 0.3s, box-shadow 0.3s;
+  transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+  animation: floatCard 6s ease-in-out infinite;
 }
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-3);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.stat-card:nth-child(2)::before { background: var(--gradient-1); }
+.stat-card:nth-child(3)::before { background: var(--gradient-3); }
+.stat-card:nth-child(4)::before { background: var(--gradient-2); }
+
+@keyframes floatCard {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.stat-card:nth-child(2) { animation-delay: 0.5s; }
+.stat-card:nth-child(3) { animation-delay: 1s; }
+.stat-card:nth-child(4) { animation-delay: 1.5s; }
 
 .stat-card:hover {
   border-color: var(--cyan);
   box-shadow: var(--glow-cyan);
+  transform: translateY(-4px) scale(1.02);
+}
+
+/* Gradient border glow on hover */
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius);
+  padding: 1px;
+  background: linear-gradient(135deg, var(--cyan), var(--purple), var(--green));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.stat-card:hover::after {
+  opacity: 1;
+  animation: borderRotate 3s linear infinite;
+}
+
+@keyframes borderRotate {
+  0% { background: linear-gradient(0deg, var(--cyan), var(--purple), var(--green)); }
+  33% { background: linear-gradient(120deg, var(--cyan), var(--purple), var(--green)); }
+  66% { background: linear-gradient(240deg, var(--cyan), var(--purple), var(--green)); }
+  100% { background: linear-gradient(360deg, var(--cyan), var(--purple), var(--green)); }
 }
 
 .stat-card .label {
@@ -178,12 +327,13 @@ body {
 }
 
 .stat-card .value {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   font-family: var(--font-mono);
   background: linear-gradient(135deg, var(--cyan), var(--green));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  line-height: 1.1;
 }
 
 .stat-card .icon {
@@ -211,11 +361,18 @@ body {
 
 /* ── Section ───────────────────────────────────────────────── */
 .section {
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   padding: 20px;
   margin-bottom: 20px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.section:hover {
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .section-title {
@@ -234,7 +391,7 @@ body {
   content: '';
   width: 3px;
   height: 16px;
-  background: var(--cyan);
+  background: var(--gradient-1);
   border-radius: 2px;
 }
 
@@ -254,8 +411,8 @@ body {
 }
 
 input[type="text"], input[type="number"], textarea, select {
-  background: var(--bg);
-  border: 1px solid var(--border);
+  background: rgba(10, 10, 15, 0.8);
+  border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 10px 14px;
   color: var(--text);
@@ -307,10 +464,18 @@ input[type="range"]::-webkit-slider-thumb {
   font-family: var(--font-ui);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.btn:hover {
+  transform: scale(1.03);
+}
+
+.btn:active {
+  transform: scale(0.97);
 }
 
 .btn-primary {
@@ -319,7 +484,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: var(--cyan);
 }
 
-.btn-primary:hover { box-shadow: var(--glow-cyan); transform:translateY(-1px); }
+.btn-primary:hover { box-shadow: var(--glow-cyan); transform: translateY(-1px) scale(1.03); }
 
 .btn-secondary {
   background: transparent;
@@ -353,13 +518,33 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .agent-card {
-  background: var(--panel-light);
-  border: 1px solid var(--border);
+  background: rgba(34, 34, 64, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius);
   padding: 16px;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   position: relative;
+  overflow: hidden;
 }
+
+.agent-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--gradient-1);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* Preset-based color coding for agent cards */
+.agent-card[data-preset="coder"]::before { background: linear-gradient(90deg, #00f0ff, #00ccdd); }
+.agent-card[data-preset="tester"]::before { background: linear-gradient(90deg, #00ff88, #00cc66); }
+.agent-card[data-preset="planner"]::before { background: linear-gradient(90deg, #7b2ff7, #a855f7); }
+.agent-card[data-preset="reviewer"]::before { background: linear-gradient(90deg, #ffd600, #ff8a00); }
+.agent-card[data-preset="writer"]::before { background: linear-gradient(90deg, #ff3b5c, #ff6b8a); }
+.agent-card[data-preset="analyst"]::before { background: linear-gradient(90deg, #00f0ff, #7b2ff7); }
 
 .agent-card:hover {
   border-color: var(--cyan);
@@ -414,10 +599,45 @@ input[type="range"]::-webkit-slider-thumb {
 .status-dot.error { background: var(--red); }
 
 /* ── Terminal ──────────────────────────────────────────────── */
+.terminal-wrapper {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #0c0c14;
+}
+
+.terminal-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(20, 20, 35, 0.95);
+  border-bottom: 1px solid var(--glass-border);
+  user-select: none;
+}
+
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transition: opacity 0.2s;
+}
+
+.terminal-dot.red { background: #ff5f56; }
+.terminal-dot.yellow { background: #ffbd2e; }
+.terminal-dot.green { background: #27c93f; }
+
+.terminal-titlebar:hover .terminal-dot { opacity: 1; }
+
+.terminal-title-text {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 8px;
+  font-family: var(--font-mono);
+}
+
 .terminal {
   background: #0c0c14;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   padding: 16px;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -458,6 +678,28 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 3px;
   transition: width 0.5s ease;
   box-shadow: 0 0 12px rgba(0,240,255,0.4);
+  position: relative;
+  background-size: 30px 30px;
+  animation: progressStripe 1s linear infinite;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(255,255,255,0.08) 8px,
+    rgba(255,255,255,0.08) 16px
+  );
+  animation: progressStripe 1s linear infinite;
+}
+
+@keyframes progressStripe {
+  0% { background-position: 0 0; }
+  100% { background-position: 30px 0; }
 }
 
 .progress-fill.purple {
@@ -527,10 +769,10 @@ input[type="range"]::-webkit-slider-thumb {
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
 }
 
-.mode-btn:hover { border-color: var(--cyan); color: var(--text); }
+.mode-btn:hover { border-color: var(--cyan); color: var(--text); transform: scale(1.03); }
 
 .mode-btn.active {
   border-color: var(--cyan);
@@ -770,6 +1012,96 @@ input[type="range"]::-webkit-slider-thumb {
   width: 14px; height: 14px;
 }
 
+/* ── Empty State ──────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.2;
+  filter: grayscale(0.5);
+}
+
+.empty-state-text {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ── Toast Notifications ──────────────────────────────────── */
+#toastContainer {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  color: var(--text-bright);
+  background: rgba(26, 26, 46, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: toastIn 0.4s ease forwards;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+  min-width: 250px;
+}
+
+.toast.toast-out {
+  animation: toastOut 0.3s ease forwards;
+}
+
+.toast.success {
+  border-left: 3px solid var(--green);
+}
+
+.toast.error {
+  border-left: 3px solid var(--red);
+}
+
+.toast.info {
+  border-left: 3px solid var(--cyan);
+}
+
+.toast.warning {
+  border-left: 3px solid var(--yellow);
+}
+
+.toast-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+@keyframes toastIn {
+  from { transform: translateX(100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes toastOut {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100px); opacity: 0; }
+}
+
 /* ── Utilities ─────────────────────────────────────────────── */
 .mt-8 { margin-top: 8px; }
 .mt-12 { margin-top: 12px; }
@@ -791,6 +1123,9 @@ input[type="range"]::-webkit-slider-thumb {
 </style>
 </head>
 <body>
+
+<!-- Animated Grid Background -->
+<div class="grid-bg"></div>
 
 <!-- ═══════════════════════════════════════════════════════════════
      HEADER
@@ -849,7 +1184,10 @@ input[type="range"]::-webkit-slider-thumb {
     <div class="section">
       <div class="section-title">กิจกรรมล่าสุด</div>
       <div class="activity-feed" id="activityFeed">
-        <div class="text-dim text-sm text-center" style="padding:20px;">ยังไม่มีกิจกรรม</div>
+        <div class="empty-state">
+          <div class="empty-state-icon">&#x1F4CB;</div>
+          <div class="empty-state-text">ยังไม่มีกิจกรรม</div>
+        </div>
       </div>
     </div>
 
@@ -1031,8 +1369,16 @@ input[type="range"]::-webkit-slider-thumb {
           <span>ผลลัพธ์</span>
           <button class="btn btn-sm btn-danger" onclick="clearOutput()">ล้าง</button>
         </div>
-        <div class="terminal" id="wsOutput">
-          <span class="line-system">พร้อมทำงาน — เลือกโหมดและ agent แล้วป้อนงาน</span>
+        <div class="terminal-wrapper">
+          <div class="terminal-titlebar">
+            <div class="terminal-dot red"></div>
+            <div class="terminal-dot yellow"></div>
+            <div class="terminal-dot green"></div>
+            <span class="terminal-title-text">output</span>
+          </div>
+          <div class="terminal" id="wsOutput">
+            <span class="line-system">พร้อมทำงาน — เลือกโหมดและ agent แล้วป้อนงาน</span>
+          </div>
         </div>
       </div>
 
@@ -1190,6 +1536,9 @@ input[type="range"]::-webkit-slider-thumb {
   </div>
 </div>
 
+<!-- Toast Container -->
+<div id="toastContainer"></div>
+
 <!-- ═══════════════════════════════════════════════════════════════
      JAVASCRIPT
      ═══════════════════════════════════════════════════════════════ -->
@@ -1201,6 +1550,30 @@ let agents = {};
 let teams = {};
 let socket = null;
 
+/* ── Toast Notifications ──────────────────────────────────── */
+function showToast(message, type) {
+  type = type || 'info';
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+
+  let icon = '';
+  if (type === 'success') icon = '\u2714';
+  else if (type === 'error') icon = '\u2718';
+  else if (type === 'warning') icon = '\u26A0';
+  else icon = '\u2139';
+
+  toast.innerHTML = '<span class="toast-icon">' + icon + '</span><span>' + message + '</span>';
+  container.appendChild(toast);
+
+  setTimeout(function() {
+    toast.classList.add('toast-out');
+    setTimeout(function() {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 300);
+  }, 4000);
+}
+
 /* ── Socket.IO ─────────────────────────────────────────────── */
 function initSocket() {
   socket = io();
@@ -1208,11 +1581,13 @@ function initSocket() {
   socket.on('connect', () => {
     document.getElementById('connDot').classList.add('connected');
     document.getElementById('connText').textContent = 'เชื่อมต่อแล้ว';
+    showToast('เชื่อมต่อเซิร์ฟเวอร์แล้ว', 'success');
   });
 
   socket.on('disconnect', () => {
     document.getElementById('connDot').classList.remove('connected');
     document.getElementById('connText').textContent = 'ขาดการเชื่อมต่อ';
+    showToast('ขาดการเชื่อมต่อกับเซิร์ฟเวอร์', 'error');
   });
 
   socket.on('connected', (data) => {
@@ -1232,6 +1607,7 @@ function initSocket() {
       document.getElementById('createAgentBar').style.width = data.percent + '%';
       document.getElementById('createAgentMsg').textContent = data.message;
       if (data.done) {
+        showToast('สร้าง Agent สำเร็จ!', 'success');
         setTimeout(() => { el.classList.add('hidden'); loadAgents(); }, 2000);
       }
     }
@@ -1241,6 +1617,7 @@ function initSocket() {
       document.getElementById('createTeamBar').style.width = data.percent + '%';
       document.getElementById('createTeamMsg').textContent = data.message;
       if (data.done) {
+        showToast('สร้างทีมสำเร็จ!', 'success');
         setTimeout(() => { el.classList.add('hidden'); loadAgents(); loadTeams(); }, 2000);
       }
     }
@@ -1254,6 +1631,7 @@ function initSocket() {
       const cursor = out.querySelector('.cursor-blink');
       if (cursor) cursor.classList.remove('cursor-blink');
       document.getElementById('wsRunBtn').disabled = false;
+      showToast('Agent ตอบเสร็จแล้ว', 'success');
       return;
     }
     // Remove old cursor
@@ -1379,7 +1757,7 @@ async function refreshDashboard() {
 function prependActivity(a, append) {
   const feed = document.getElementById('activityFeed');
   // Clear placeholder
-  if (feed.querySelector('.text-center')) feed.innerHTML = '';
+  if (feed.querySelector('.text-center') || feed.querySelector('.empty-state')) feed.innerHTML = '';
 
   const div = document.createElement('div');
   div.className = 'activity-item';
@@ -1413,18 +1791,19 @@ function renderAgentGrid() {
   const grid = document.getElementById('agentGrid');
   const keys = Object.keys(agents);
   if (keys.length === 0) {
-    grid.innerHTML = '<div class="text-dim text-sm">ยังไม่มี agent</div>';
+    grid.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F916;</div><div class="empty-state-text">ยังไม่มี agent</div></div>';
     return;
   }
   grid.innerHTML = keys.map(k => {
     const a = agents[k];
+    const preset = a.preset || 'auto';
     return `
-      <div class="agent-card">
+      <div class="agent-card" data-preset="${preset}">
         <div class="agent-name"><span class="status-dot idle"></span>${k}</div>
         <div class="agent-expertise">${a.expertise || ''}</div>
         <div class="agent-meta">
           <span>${a.base_model || ''}</span>
-          <span class="tag">${a.preset || 'auto'}</span>
+          <span class="tag">${preset}</span>
           <span>temp: ${a.temperature ?? ''}</span>
         </div>
         <div class="agent-actions">
@@ -1440,7 +1819,7 @@ function renderTeamList() {
   const list = document.getElementById('teamList');
   const keys = Object.keys(teams);
   if (keys.length === 0) {
-    list.innerHTML = '<div class="text-dim text-sm">ยังไม่มีทีม</div>';
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F465;</div><div class="empty-state-text">ยังไม่มีทีม</div></div>';
     return;
   }
   list.innerHTML = keys.map(k => {
@@ -1492,6 +1871,7 @@ async function deleteAgent(name) {
   if (!confirm(`ลบ ${name}?`)) return;
   await api('/api/factory/agent/' + encodeURIComponent(name), { method: 'DELETE' });
   loadAgents();
+  showToast('ลบ ' + name + ' แล้ว', 'info');
 }
 
 function testAgent(name) {
@@ -1694,11 +2074,13 @@ function handleRunEvent(data) {
       }
       if (data.error) {
         appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+        showToast('Pipeline error: ' + data.error, 'error');
       }
     }
     else if (data.status === 'complete') {
       appendOutput('\n=== Pipeline เสร็จสิ้น ===\n', 'line-success');
       document.getElementById('wsRunBtn').disabled = false;
+      showToast('Pipeline เสร็จสิ้น', 'success');
     }
   }
   else if (data.mode === 'parallel') {
@@ -1708,11 +2090,15 @@ function handleRunEvent(data) {
     else if (data.status === 'done' || data.status === 'error') {
       appendOutput(`\n--- ${data.agent} ---\n`, 'line-agent');
       if (data.response) appendOutput(data.response + '\n', 'line-output');
-      if (data.error) appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+      if (data.error) {
+        appendOutput('ERROR: ' + data.error + '\n', 'line-error');
+        showToast('Parallel error: ' + data.error, 'error');
+      }
     }
     else if (data.status === 'complete') {
       appendOutput('\n=== Parallel เสร็จสิ้น ===\n', 'line-success');
       document.getElementById('wsRunBtn').disabled = false;
+      showToast('Parallel เสร็จสิ้น', 'success');
     }
   }
   else if (data.mode === 'debate') {
@@ -1743,12 +2129,14 @@ function handleRunEvent(data) {
     else if (data.status === 'complete') {
       appendOutput('\n=== Debate เสร็จสิ้น ===\n', 'line-success');
       document.getElementById('wsRunBtn').disabled = false;
+      showToast('Debate เสร็จสิ้น', 'success');
     }
   }
 
   if (data.error && !data.mode) {
     appendOutput('ERROR: ' + data.error + '\n', 'line-error');
     document.getElementById('wsRunBtn').disabled = false;
+    showToast('Error: ' + data.error, 'error');
   }
 }
 
@@ -1818,7 +2206,7 @@ async function loadDatasets() {
   const datasets = await api('/api/train/datasets') || [];
   const el = document.getElementById('datasetsList');
   if (datasets.length === 0) {
-    el.innerHTML = '<div class="text-dim text-sm">ยังไม่มี dataset</div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F4BE;</div><div class="empty-state-text">ยังไม่มี dataset</div></div>';
     return;
   }
   el.innerHTML = datasets.map(d => `
@@ -1836,7 +2224,7 @@ async function loadTrainResults() {
   const results = await api('/api/train/results') || [];
   const el = document.getElementById('trainResultsList');
   if (results.length === 0) {
-    el.innerHTML = '<div class="text-dim text-sm">ยังไม่มีผล</div>';
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">&#x1F4C4;</div><div class="empty-state-text">ยังไม่มีผล</div></div>';
     return;
   }
   el.innerHTML = results.slice(0, 20).map(r => {
@@ -1875,6 +2263,7 @@ async function startDistill() {
   await postJSON('/api/train/distill', {
     dataset_name: name, teacher, topics, examples_per_topic: examples,
   });
+  showToast('เริ่ม Distillation...', 'info');
 }
 
 async function startTrain() {
@@ -1887,6 +2276,7 @@ async function startTrain() {
   document.getElementById('trainMsg').textContent = 'กำลังเทรน...';
 
   await postJSON('/api/train/train', { agent_name: agent, dataset_name: dataset });
+  showToast('เริ่มเทรน ' + agent, 'info');
 }
 
 async function startExam() {
@@ -1900,6 +2290,7 @@ async function startExam() {
   document.getElementById('examResults').classList.add('hidden');
 
   await postJSON('/api/train/exam', { agent_name: agent, exam_file: examFile });
+  showToast('เริ่มสอบ ' + agent, 'info');
 }
 
 async function startFullTraining() {
@@ -1920,6 +2311,7 @@ async function startFullTraining() {
     agent_name: agent, topics, teacher,
     examples_per_topic: 5, exam_questions: 10,
   });
+  showToast('เริ่ม Full Training Pipeline', 'info');
 }
 
 function handleTrainEvent(data) {
@@ -1929,6 +2321,7 @@ function handleTrainEvent(data) {
     if (bar) bar.style.width = (data.percent || 0) + '%';
     if (msg) msg.textContent = data.message || '';
     if (data.status === 'complete') {
+      showToast('เทรนเสร็จสิ้น!', 'success');
       setTimeout(() => {
         document.getElementById('trainProgress').classList.add('hidden');
         loadDatasets();
@@ -1947,9 +2340,11 @@ function handleTrainEvent(data) {
       document.getElementById('examProgress').classList.add('hidden');
       showExamResults(data);
       loadTrainResults();
+      showToast('สอบเสร็จสิ้น! ผล: ' + (data.percentage ? data.percentage.toFixed(1) + '%' : ''), 'success');
     }
     if (data.status === 'error') {
       if (msg) msg.textContent = data.message;
+      showToast('สอบผิดพลาด: ' + (data.message || ''), 'error');
     }
   }
 
@@ -1978,6 +2373,8 @@ function handleTrainEvent(data) {
       for (let i = 1; i <= 5; i++) {
         document.getElementById('ftStep' + i).className = 'train-step done';
       }
+
+      showToast('Full Training เสร็จสิ้น!', 'success');
 
       // Show comparison chart
       if (data.summary.pre && data.summary.post) {
@@ -2018,6 +2415,7 @@ function handleTrainEvent(data) {
 
   if (data.stage === 'distill') {
     if (data.status === 'complete') {
+      showToast('Distillation เสร็จสิ้น!', 'success');
       loadDatasets();
     }
   }
