@@ -258,10 +258,10 @@ class VoiceSpeaker(QObject):
         return output_path
 
     def _try_pyttsx3(self, text: str) -> Optional[Path]:
-        """Fallback TTS — WinRT for Thai, pyttsx3 for English."""
-        # Try WinRT (has Thai Pattara voice) first for Thai text
+        """Fallback TTS — gTTS for Thai, pyttsx3 for English."""
+        # Try gTTS (Google, female voice) for Thai text
         if _contains_thai(text):
-            path = self._try_winrt_tts(text)
+            path = self._try_gtts(text)
             if path:
                 return path
 
@@ -292,56 +292,24 @@ class VoiceSpeaker(QObject):
 
         return output_path
 
-    def _try_winrt_tts(self, text: str) -> Optional[Path]:
-        """Use Windows WinRT SpeechSynthesizer (Pattara Thai voice)."""
-        import subprocess
+    def _try_gtts(self, text: str) -> Optional[Path]:
+        """Use Google TTS (female Thai voice, needs internet)."""
+        try:
+            from gtts import gTTS  # type: ignore[import-untyped]
+        except ImportError:
+            logger.debug("gTTS not installed")
+            return None
 
-        filename = f"tts_{int(time.time() * 1000)}.wav"
+        filename = f"tts_{int(time.time() * 1000)}.mp3"
         output_path = self._tmp_dir / filename
 
-        # PowerShell script to synthesize Thai speech
-        ps_script = f'''
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$asTaskGeneric = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {{
-    $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and
-    $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1'
-}})[0]
-Function Await($WinRtTask, $ResultType) {{
-    $asTask = $asTaskGeneric.MakeGenericMethod($ResultType)
-    $netTask = $asTask.Invoke($null, @($WinRtTask))
-    $netTask.Wait(-1) | Out-Null
-    return $netTask.Result
-}}
-$synth = [Windows.Media.SpeechSynthesis.SpeechSynthesizer, Windows.Media.SpeechSynthesis, ContentType=WindowsRuntime]::new()
-foreach ($v in [Windows.Media.SpeechSynthesis.SpeechSynthesizer]::AllVoices) {{
-    if ($v.Language -eq "th-TH") {{ $synth.Voice = $v; break }}
-}}
-$stream = Await $synth.SynthesizeTextToStreamAsync("{text}") ([Windows.Media.SpeechSynthesis.SpeechSynthesisStream])
-$size = $stream.Size
-$inputStream = $stream.GetInputStreamAt(0)
-$dataReader = [Windows.Storage.Streams.DataReader, Windows.Storage.Streams, ContentType=WindowsRuntime]::new($inputStream)
-$loadTask = $asTaskGeneric.MakeGenericMethod([uint32])
-$loaded = $loadTask.Invoke($null, @($dataReader.LoadAsync([uint32]$size)))
-$loaded.Wait(-1) | Out-Null
-$bytes = New-Object byte[] $size
-$dataReader.ReadBytes($bytes)
-[System.IO.File]::WriteAllBytes("{output_path}", $bytes)
-'''
-
-        logger.debug("Generating TTS (WinRT Pattara): %s", output_path)
+        logger.debug("Generating TTS (gTTS Thai female): %s", output_path)
 
         try:
-            result = subprocess.run(
-                ["powershell.exe", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            if not output_path.exists() or output_path.stat().st_size < 100:
-                logger.warning("WinRT TTS produced no output")
-                return None
+            tts = gTTS(text, lang="th")
+            tts.save(str(output_path))
         except Exception as exc:  # noqa: BLE001
-            logger.error("WinRT TTS failed: %s", exc)
+            logger.warning("gTTS failed: %s", exc)
             return None
 
         if self._stop_event.is_set():

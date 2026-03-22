@@ -6,6 +6,7 @@ SpeechRecognition>=3.10
 sounddevice>=0.4
 edge-tts>=6.1
 pyttsx3>=2.90
+gTTS>=2.3
 opencv-python>=4.8
 keyboard>=0.13
 Pillow>=10.0
