@@ -43,6 +43,7 @@ from ui.chat_panel import ChatPanel
 from brain.ai_brain import AIBrain
 from voice.listener import VoiceListener, ListenMode
 from voice.speaker import VoiceSpeaker
+from voice.phone_mic_server import PhoneMicServer
 from vision.camera import WebcamCapture
 
 
@@ -94,6 +95,11 @@ class NovaAssistant(QObject):
     def _init_voice(self):
         self.listener = VoiceListener()
         self.speaker = VoiceSpeaker()
+        # Phone mic server (wireless mic from phone browser)
+        self.phone_mic = PhoneMicServer(on_audio_text=self._on_phone_voice)
+        self.phone_mic.start()
+        print(f"  Phone mic: {self.phone_mic.url}")
+        print(f"  Open this URL on your phone to use it as a mic")
 
     def _connect_signals(self):
         # Avatar interactions
@@ -270,6 +276,11 @@ class NovaAssistant(QObject):
         self.chat.add_message("You", text, "user")
         self._process_input(text)
 
+    def _on_phone_voice(self, text: str):
+        """Handle voice input from phone mic (called from background thread)."""
+        # Use listener signal to safely cross thread boundary
+        self.listener.text_recognized.emit(text)
+
     @pyqtSlot(bool)
     def _on_voice_toggled(self, enabled: bool):
         """Toggle voice listening."""
@@ -402,6 +413,7 @@ class NovaAssistant(QObject):
         """Clean shutdown."""
         self.listener.stop_listening()
         self.speaker.shutdown()
+        self.phone_mic.stop()
         # Stop camera if active
         camera_widget = self.chat.get_camera_widget()
         camera_widget.stop()
